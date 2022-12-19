@@ -186,7 +186,7 @@ def main(arg=None):
     trainer.add_callback(freezing_callback)
     print('training!')
 
-    trainer.predict(train_ds)
+    trainer.train(train_ds)
 
 
 if __name__ == "__main__":
