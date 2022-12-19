@@ -8,7 +8,7 @@ from datasets import load_from_disk
 from torch.nn.utils.rnn import pad_sequence
 from transformers import Trainer, TrainingArguments, EarlyStoppingCallback, AutoTokenizer, TrainerCallback, \
     TrainerState, TrainerControl, logging
-from config_parser import parse_args
+from utils.config_parser import parse_args
 from hf_model import HFSpeechMixEEDmBart
 import wandb
 
