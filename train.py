@@ -1,6 +1,7 @@
 import sys
 from dataclasses import dataclass
 from typing import Dict, List, Union, Optional
+import os
 
 import asrp
 import torch
@@ -30,7 +31,7 @@ class DataCollatorWithPadding:
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
         batch = {}
         batch['input_values'] = pad_sequence([torch.tensor(feature["input_values"]) for feature in features],
-                                                 batch_first=True, padding_value=-100)
+                                             batch_first=True, padding_value=-100)
 
         label_features = [{"input_ids": feature['labels']} for feature in features]
         labels_batch = self.tokenizer.pad(
@@ -64,9 +65,12 @@ class DataCollatorWithPadding:
         return batch
 
 
-def get_model(input_args):
+def get_model(input_args, local=''):
+    if local and os.path.isdir(local):
+        model = HFSpeechMixEEDmBart.from_pretrained(f"models/{local}/", local_files_only=True)
+    else:
+        model = HFSpeechMixEEDmBart(**input_args)
     model_type = "HFSpeechMixEEDmBart"
-    model = HFSpeechMixEEDmBart(**input_args)
     return model, model_type
 
 
@@ -75,7 +79,7 @@ def main(arg=None):
     input_args, other_arg = parse_args(sys.argv[1:]) if arg is None else parse_args(arg)
     print("input_args", input_args)
 
-    model, model_type = get_model(input_args)
+    model, model_type = get_model(input_args, input_args.get('local'))
     selftype = 'SpeechMixSelf' in model_type
     if __name__ == '__main__':
         cuda = torch.cuda.is_available()
@@ -135,7 +139,8 @@ def main(arg=None):
 
     if 'custom_set_path' in input_args:
         print('load datasets')
-        train_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/train_cuda:0_en_HF_EED_mbart_cuda.data/train")
+        train_ds = load_from_disk(
+            f"{input_args['custom_set_path']}/transformers/train_cuda:0_en_HF_EED_mbart_cuda.data/train")
         dev_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/test_cpu_en_HF_EED_mbart.data/train")
         print('datasets loaded')
         train_ds = train_ds.remove_columns(
@@ -147,7 +152,7 @@ def main(arg=None):
                                             selftype=selftype)
 
     training_args = TrainingArguments(
-        output_dir=f"./{input_args['speech_model_config']}_{input_args['nlp_model_config']}_{model_type}_{input_args.get('notes', '')}",
+        output_dir=f"./checkpoints",
         per_device_train_batch_size=int(input_args['batch']),
         per_device_eval_batch_size=int(input_args['batch']),
         gradient_accumulation_steps=int(input_args['grad_accum']),
@@ -186,8 +191,11 @@ def main(arg=None):
     trainer.add_callback(freezing_callback)
     print('training!')
 
-    trainer.train()
-
+    if input_args.get('eval', False):
+        trainer.eval()
+    else:
+        trainer.train()
+        trainer.save_model(f"./models/{input_args.get('modelpath')}")
 
 if __name__ == "__main__":
     main()
