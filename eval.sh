@@ -9,4 +9,6 @@ python train.py --speech_model_config "facebook/wav2vec2-large-960h-lv60-self" \
 --down_scale 2 \
 --lr 4e-5 \
 --warmup_steps 500 \
---notes v1
+--notes v1 \
+--eval True \
+--local preatrainedmbart50v1

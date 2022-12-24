@@ -1,5 +1,5 @@
 import argparse
-
+from datetime import date
 
 def parse_args(args):
     parser = argparse.ArgumentParser()
@@ -30,6 +30,8 @@ def parse_args(args):
     parser.add_argument("--custom_set_path", type=str)
     parser.add_argument("--max_input_length_in_sec", default=20, type=int)
     parser.add_argument("--group_by_length", action="store_true")
+    parser.add_argument("--modelpath", default=date.today().strftime("%b-%d-%Y"), type=str)
+    parser.add_argument("--eval", default=False, type=bool)
     parser.add_argument('--fixed_except', nargs='+',
                         default=["layer_norm", "encoder_attn", 'enc_to_dec_proj', 'length_adapter',
                                  "layernorm_embedding", 'attention', 'encoder'])
