@@ -192,7 +192,7 @@ def main(arg=None):
     print('training!')
 
     if input_args.get('eval', False):
-        trainer.eval()
+        trainer.evaluate()
     else:
         trainer.train()
         trainer.save_model(f"./models/{input_args.get('modelpath')}")
