@@ -2,7 +2,7 @@ import sys
 from dataclasses import dataclass
 from typing import Dict, List, Union, Optional
 import os
-
+import random
 import asrp
 import torch
 from datasets import load_from_disk
@@ -10,7 +10,7 @@ from torch.nn.utils.rnn import pad_sequence
 from transformers import Trainer, TrainingArguments, EarlyStoppingCallback, AutoTokenizer, TrainerCallback, \
     TrainerState, TrainerControl, logging
 from utils.config_parser import parse_args
-from hf_model import HFSpeechMixEEDmBart
+from hf_model import HFSpeechMixEEDmBart, SpeechMixConfig
 import wandb
 
 logging.set_verbosity_info()
@@ -67,7 +67,10 @@ class DataCollatorWithPadding:
 
 def get_model(input_args, local=''):
     if local and os.path.isdir(local):
-        model = HFSpeechMixEEDmBart.from_pretrained(f"models/{local}/", local_files_only=True)
+        config = SpeechMixConfig.from_json_file(f'./checkpoints/{local}/config.json')
+        checkpoint = torch.load(f'./checkpoints/{local}/pytorch_model.bin', map_location=torch.device('cpu'))
+        model = HFSpeechMixEEDmBart(config)
+        model.load_state_dict(checkpoint, strict=False)
     else:
         model = HFSpeechMixEEDmBart(**input_args)
     model_type = "HFSpeechMixEEDmBart"
