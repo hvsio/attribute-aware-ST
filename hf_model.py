@@ -5,16 +5,9 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from transformers import AutoConfig, Wav2Vec2Processor, MBart50Tokenizer
-from transformers import AutoModelForSeq2SeqLM
-from transformers import AutoTokenizer
-from transformers import HubertModel
 from transformers import PreTrainedModel
 from transformers import PretrainedConfig
-from transformers import SpeechEncoderDecoderModel
-from transformers import UniSpeechSatModel
-from transformers import Wav2Vec2FeatureExtractor
 from transformers import Wav2Vec2Model, MBartForConditionalGeneration
-from transformers.modeling_outputs import Seq2SeqLMOutput
 from transformers import logging
 
 logger = logging.get_logger('train')
@@ -42,8 +35,8 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 
     def __init__(
             self,
-            speech_model_config,
-            nlp_model_config,
+            speech_model_config=None,
+            nlp_model_config=None,
             share_layer_ratio=0.5,
             down_scale=8,
             weighted_sum=False,
@@ -58,7 +51,12 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             ],
             **kwargs,
     ):
-        config = SpeechMixConfig.from_configs(speech_model_config, nlp_model_config)
+        if isinstance(speech_model_config, PretrainedConfig):
+            config = speech_model_config
+            speech_model_config = config.to_dict().get('encoder')['_name_or_path']
+            nlp_model_config = config.to_dict().get('decoder')['_name_or_path']
+        else:
+            config = SpeechMixConfig.from_configs(speech_model_config, nlp_model_config)
         super(HFSpeechMixEEDmBart, self).__init__(config)
 
         self.encoder_model = Wav2Vec2Model
@@ -158,6 +156,14 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 
     def get_decoder(self):
         return self.decoder_model
+
+    def _init_weights(self, module):
+        """ Initialize the weights """
+        if isinstance(module, nn.Conv1d):
+            module.bias.data.zero_()
+            module.weight.data.fill_(1.0)
+        if isinstance(module, nn.Linear) and module.bias is not None:
+            module.bias.data.zero_()
 
     def prepare_decoder_input_ids_from_labels(self, labels: torch.Tensor):
         return shift_tokens_right(labels, self.config.pad_token_id,
@@ -354,386 +360,3 @@ class SpeechMixConfig(PretrainedConfig):
         output["decoder"] = self.decoder.to_dict()
         output["model_type"] = self.__class__.model_type
         return output
-
-
-class HFSpeechMixED(PreTrainedModel):
-    main_input_name = "input_values"
-
-    def __init__(
-            self,
-            speech_model_config,
-            nlp_model_config,
-            fixed_parameters=False,
-            fixed_except=[
-                "layer_norm",
-                "encoder_attn",
-                "enc_to_dec_proj",
-                "length_adapter",
-                "layernorm_embedding",
-                "attention",
-                "encoder",
-            ],
-            **kwargs,
-    ):
-        config = SpeechMixConfig.from_configs(speech_model_config,
-                                              nlp_model_config)
-        super(HFSpeechMixED, self).__init__(config)
-        self.model = SpeechEncoderDecoderModel.from_encoder_decoder_pretrained(
-            speech_model_config, nlp_model_config)
-        self.model.config.decoder_start_token_id = (
-            self.model.config.decoder.decoder_start_token_id)
-        self.model.config.pad_token_id = self.model.config.decoder.pad_token_id
-        self.processor = Wav2Vec2FeatureExtractor.from_pretrained(
-            speech_model_config)
-        self.tokenizer = AutoTokenizer.from_pretrained(nlp_model_config)
-        self.model.freeze_feature_encoder()
-        if fixed_parameters:
-            for name, param in self.model.named_parameters():
-                if param.requires_grad:
-                    if any([k in name for k in fixed_except]):
-                        param.requires_grad = True
-                    else:
-                        param.requires_grad = False
-
-    def get_encoder(self):
-        return self.encoder_model
-
-    def get_decoder(self):
-        return self.decoder_model
-
-    def prepare_decoder_input_ids_from_labels(self, labels: torch.Tensor):
-        return shift_tokens_right(labels, self.config.pad_token_id,
-                                  self.config.decoder_start_token_id)
-
-    def prepare_inputs_for_generation(
-            self,
-            input_ids,
-            past=None,
-            attention_mask=None,
-            use_cache=None,
-            encoder_outputs=None,
-            **kwargs,
-    ):
-        decoder_inputs = self.decoder_model.prepare_inputs_for_generation(
-            input_ids, past=past)
-        decoder_attention_mask = (decoder_inputs["attention_mask"] if
-                                  "attention_mask" in decoder_inputs else None)
-        # "attention_mask": attention_mask,
-        # "decoder_attention_mask": decoder_attention_mask,
-        input_dict = {
-            "decoder_input_ids": decoder_inputs["input_ids"],
-            "decoder_attention_mask": decoder_attention_mask,
-            "encoder_outputs": encoder_outputs,
-            "past_key_values": decoder_inputs["past_key_values"],
-            "use_cache": use_cache,
-        }
-        return input_dict
-
-    def forward(self,
-                input_values,
-                attention_mask=None,
-                decoder_input_ids=None,
-                labels=None):
-        print("Forwarding...")
-        if decoder_input_ids is None and labels is None:
-            decoder_input_ids = handle_decoder_input_none(
-                self.model.config.decoder, device=self.device)
-        outputs = self.model(
-            input_values=input_values,
-            attention_mask=attention_mask,
-            decoder_input_ids=decoder_input_ids,
-            labels=labels,
-        )
-        return_dict = {"logits": torch.argmax(outputs["logits"], -1)}
-        if "loss" in outputs:
-            return_dict["loss"] = outputs["loss"]
-        return Seq2SeqLMOutput(
-            loss=outputs["loss"] if "loss" in outputs else None,
-            logits=outputs.logits,
-            past_key_values=outputs.past_key_values,
-            decoder_hidden_states=outputs.decoder_hidden_states,
-            decoder_attentions=outputs.decoder_attentions,
-            cross_attentions=outputs.cross_attentions,
-            # encoder_last_hidden_state=encoder_outputs.last_hidden_state,
-            # encoder_hidden_states=encoder_outputs.hidden_states,
-            # encoder_attentions=encoder_outputs.attentions,
-        )
-
-
-class HFSpeechMixEED(PreTrainedModel):
-    main_input_name = "input_values"
-
-    def __init__(
-            self,
-            speech_model_config,
-            nlp_model_config,
-            share_layer_ratio=0,
-            down_scale=8,
-            weighted_sum=False,
-            fixed_parameters=False,
-            fixed_except=[
-                "layer_norm",
-                "encoder_attn",
-                "enc_to_dec_proj",
-                "length_adapter",
-                "layernorm_embedding",
-                "attention",
-            ],
-            **kwargs,
-    ):
-        config = SpeechMixConfig.from_configs(speech_model_config,
-                                              nlp_model_config)
-        super(HFSpeechMixEED, self).__init__(config)
-        if "hubert" in speech_model_config:
-            self.encoder_model = HubertModel
-        elif "unispeech" in speech_model_config:
-            self.encoder_model = UniSpeechSatModel
-        else:
-            self.encoder_model = Wav2Vec2Model
-        self.encoder_model = self.encoder_model.from_pretrained(
-            speech_model_config)
-        self.decoder_model = AutoModelForSeq2SeqLM.from_pretrained(
-            nlp_model_config)
-        self.tokenizer = AutoTokenizer.from_pretrained(nlp_model_config)
-        self.weighted_sum = weighted_sum
-
-        num_nlp_encoder_layers = 0
-        if hasattr(self.decoder_model.base_model.encoder, "layers"):
-            num_nlp_encoder_layers = len(
-                self.decoder_model.base_model.encoder.layers)
-        elif hasattr(self.decoder_model.base_model.encoder, "block"):
-            num_nlp_encoder_layers = len(
-                self.decoder_model.base_model.encoder.block)
-
-        print(
-            "Before layer sharing num_speech_encoder_layers",
-            len(self.encoder_model.encoder.layers),
-        )
-        remove_layers = (int(
-            len(self.encoder_model.encoder.layers) *
-            share_layer_ratio) if share_layer_ratio != 0 else 0)
-        # ASR encoder
-        self.encoder_model.encoder.layers = self.encoder_model.encoder.layers[:len(
-            self.encoder_model.encoder.layers) - remove_layers]
-        # MT encoder
-        self.num_speech_encoder_layers = len(self.encoder_model.encoder.layers)
-        print(
-            "After layer sharing ",
-            "num_speech_encoder_layers",
-            len(self.encoder_model.encoder.layers),
-            "num_nlp_encoder_layers",
-            num_nlp_encoder_layers,
-            "share_layer_ratio",
-            share_layer_ratio,
-            "remove_layers",
-            remove_layers,
-        )
-
-        # Downsample
-        self.downsize = down_scale
-        self.downloop = int(math.log(self.downsize, 2))
-        if self.downsize > 1:
-            self.length_adapters = nn.Sequential(*[
-                nn.Conv1d(
-                    in_channels=self.encoder_model.config.hidden_size,
-                    out_channels=self.encoder_model.config.hidden_size,
-                    kernel_size=2,
-                    stride=2,
-                ) for _ in range(self.downloop)
-            ])
-        else:
-            self.length_adapters = nn.Sequential(nn.Identity())
-
-        if self.weighted_sum:
-            self.weights_sum = nn.Parameter(
-                torch.zeros(self.num_speech_encoder_layers + 1))
-        # adaptor
-        self.enc_to_dec_proj = nn.Linear(self.encoder_model.config.hidden_size,
-                                         self.decoder_model.config.hidden_size)
-        self.custom_modules(**kwargs)
-        if fixed_parameters:
-            self.encoder_model.eval()
-            self.decoder_model.eval()
-            for xcoder in [
-                self.encoder_model.named_parameters,
-                self.decoder_model.named_parameters,
-            ]:
-                for name, param in xcoder():
-                    if param.requires_grad:
-                        if any([k in name for k in fixed_except]):
-                            param.requires_grad = True
-                        else:
-                            param.requires_grad = False
-
-        list_no_grad = []
-        list_grad = []
-        for name, param in self.named_parameters():
-            if param.requires_grad:
-                list_grad.append(name)
-            else:
-                list_no_grad.append(name)
-
-        self.nlp_emb = self.decoder_model.get_input_embeddings()
-        # gender/state embedding
-        self.speech_encoder_layer = len(self.encoder_model.encoder.layers)
-        self.nlp_encoder_layer = num_nlp_encoder_layers
-        self.list_grad = list_grad
-        self.list_no_grad = list_no_grad
-
-        self.decoder_outputs = None
-
-    def get_encoder(self):
-        return self.encoder_model
-
-    def get_decoder(self):
-        return self.decoder_model
-
-    def prepare_decoder_input_ids_from_labels(self, labels: torch.Tensor):
-        return shift_tokens_right(labels, self.config.pad_token_id,
-                                  self.config.decoder_start_token_id)
-
-    def prepare_inputs_for_generation(
-            self,
-            input_ids,
-            past=None,
-            attention_mask=None,
-            use_cache=None,
-            encoder_outputs=None,
-            **kwargs,
-    ):
-        # "attention_mask": attention_mask,
-        # decoder_inputs = self.decoder_model.prepare_inputs_for_generation(input_ids, past=past)
-        # decoder_attention_mask = decoder_inputs["attention_mask"] if "attention_mask" in decoder_inputs else None
-        # "decoder_attention_mask": decoder_attention_mask,
-        input_dict = {
-            "encoder_outputs": encoder_outputs,
-            "attention_mask": attention_mask,
-            "use_cache": use_cache,
-            "past_key_values": past,
-            "decoder_input_ids": input_ids,
-        }
-        input_dict.update(kwargs)
-        return input_dict
-
-    def _reorder_cache(self, past, beam_idx):
-        return self.decoder_model._reorder_cache(past, beam_idx)
-
-    def custom_modules(self, **kwargs):
-        return None
-
-    def cal_loss(
-            self,
-            inputs_embeds=None,
-            text_input_ids=None,
-            attention_mask=None,
-            decoder_outputs=None,
-            decoder_input_ids=None,
-            labels=None,
-            past_key_values=None,
-            use_cache=None,
-    ):
-        if past_key_values is None:
-            self.decoder_outputs = None
-        if inputs_embeds is not None:
-            output = self.decoder_model(
-                inputs_embeds=inputs_embeds,
-                encoder_outputs=decoder_outputs if decoder_outputs else self.decoder_outputs,
-                attention_mask=attention_mask,
-                decoder_input_ids=decoder_input_ids,
-                labels=labels,
-                past_key_values=past_key_values,
-                use_cache=use_cache,
-            )
-        elif text_input_ids is not None:
-            output = self.decoder_model(
-                input_ids=text_input_ids,
-                encoder_outputs=decoder_outputs if decoder_outputs else self.decoder_outputs,
-                decoder_input_ids=decoder_input_ids,
-                labels=labels,
-                past_key_values=past_key_values,
-                use_cache=use_cache,
-            )
-        self.decoder_outputs = [output.encoder_last_hidden_state]
-        return output
-
-    def forward(
-            self,
-            input_values=None,
-            labels=None,
-            decoder_text_prompt=None,
-            text_input_ids=None,
-            decoder_input_ids=None,
-            encoder_outputs=None,
-            decoder_outputs=None,
-            past_key_values=None,
-            use_cache=None,
-            return_model_detail=True,
-            output_attentions=None,
-            output_hidden_states=None,
-            return_dict=None,
-            **kwargs,
-    ):
-        print("Forwarding...")
-        return_dict = {}
-        if encoder_outputs is None:
-            # get ASR features
-            encoder_outputs = self.encoder_model(input_values, output_hidden_states=True)
-        if decoder_input_ids is None and labels is None:
-            # get starting tokens as decoder input ids
-            print("handling empty decoder ids")
-            decoder_input_ids = handle_decoder_input_none(
-                self.decoder_model.config,
-                encoder_outputs.last_hidden_state.shape[0],
-                device=self.device,
-            )
-        elif decoder_input_ids is None and labels is not None:
-            # shift and add start token
-            print("adding token")
-            decoder_input_ids = shift_tokens_right(
-                labels,
-                self.decoder_model.config.pad_token_id,
-                self.decoder_model.config.decoder_start_token_id,
-            )
-
-        # get the last hidden state of encoder
-        inputs_embeds = encoder_outputs.last_hidden_state.to(self.device)
-        if self.weighted_sum:
-            # weighted sum
-            stacked_feature = torch.stack(encoder_outputs["hidden_states"],
-                                          dim=0)
-            _, *origin_shape = stacked_feature.shape
-            stacked_feature = stacked_feature.view(
-                self.num_speech_encoder_layers + 1, -1)
-            norm_weights = F.softmax(self.weights_sum, dim=-1)
-            if return_model_detail:
-                return_dict["weighted_sum"] = norm_weights
-            weighted_feature = (norm_weights.unsqueeze(-1) *
-                                stacked_feature).sum(dim=0)
-            inputs_embeds = weighted_feature.view(*origin_shape)
-        if return_model_detail:
-            return_dict["shape_before_length_adapter"] = inputs_embeds.shape
-        inputs_embeds = self.length_adapters(inputs_embeds.transpose(
-            1, 2)).transpose(1, 2)
-        if return_model_detail:
-            return_dict["shape_before_enc_dec_projector"] = inputs_embeds.shape
-        inputs_embeds = self.enc_to_dec_proj(inputs_embeds)
-        if return_model_detail:
-            return_dict["shape_after_enc_dec_projector"] = inputs_embeds.shape
-        if decoder_text_prompt is not None:
-            text_prompt = self.nlp_emb(
-                self.tokenizer(decoder_text_prompt, return_tensors="pt")["input_ids"].to(self.device))
-            inputs_embeds = torch.cat((text_prompt.expand(inputs_embeds.shape[0], -1, -1), inputs_embeds), 1)
-        outputs = self.cal_loss(
-            inputs_embeds=inputs_embeds,
-            decoder_outputs=decoder_outputs,
-            text_input_ids=text_input_ids,
-            decoder_input_ids=decoder_input_ids,
-            labels=labels,
-            past_key_values=past_key_values,
-            use_cache=use_cache,
-        )
-        outputs["logits"] = torch.argmax(outputs["logits"], -1)
-        # loss, logits, past_key_values,
-        # decoder_hidden_states, cross_attention,
-        # encoder_last_hidden_state, encoder_hidden_state, encoder_attentions
-        return outputs
