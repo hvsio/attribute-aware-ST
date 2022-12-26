@@ -1,7 +1,7 @@
 import sys
 from dataclasses import dataclass
 from typing import Dict, List, Union, Optional
-import os
+import evaluate
 import random
 import asrp
 import torch
@@ -67,7 +67,7 @@ class DataCollatorWithPadding:
 
 def get_model(input_args, local=''):
     if local:
-        print("loading checkpoint")
+        print(f"loading checkpoint {local}")
         config = SpeechMixConfig.from_json_file(f'./checkpoints/{local}/config.json')
         checkpoint = torch.load(f'./checkpoints/{local}/pytorch_model.bin')
         model = HFSpeechMixEEDmBart(config)
@@ -103,13 +103,19 @@ def main(arg=None):
         label_ids = [i[i != -100] for i in label_ids]
         label_str = model.tokenizer.batch_decode(label_ids, skip_special_tokens=True, group_tokens=False)
 
+        gold_sentences = [[l] for l in label_str]
+
+        sacrebleu = evaluate.load("sacrebleu")
+        bleu_score = sacrebleu.compute(predictions=pred_str, references = gold_sentences)
+
         # for l, p in zip(label_str, pred_str):
         #     print(l, "======", p)
         cer = asrp.cer(label_str, pred_str)
         wer = asrp.wer(label_str, pred_str)
-        print({ 'pred_str': pred_str, "label_str": label_str, "cer": cer, "wer": wer})
-        wandb.log({ 'pred_str': pred_str, "label_str": label_str, "cer": cer, "wer": wer})
-        return {"cer": cer, "wer": wer}
+        print({ 'pred_str': pred_str, "label_str": label_str})
+        print({"cer": cer, "wer": wer, "bleu": bleu_score['score']})
+        wandb.log({ "cer": cer, "wer": wer, "bleu": bleu_score['score']})
+        return {"cer": cer, "wer": wer, "bleu": bleu_score['score']}
 
     class FreezingCallback(TrainerCallback):
         def __init__(self, trainer, freeze_model, freeze_epoch=3):
