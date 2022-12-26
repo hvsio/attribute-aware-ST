@@ -2,8 +2,6 @@ import sys
 from dataclasses import dataclass
 from typing import Dict, List, Union, Optional
 import os
-import random
-random.random
 
 import asrp
 import torch
@@ -105,8 +103,8 @@ def main(arg=None):
         #     print(l, "======", p)
         cer = asrp.cer(label_str, pred_str)
         wer = asrp.wer(label_str, pred_str)
-        print({'pred_ids': pred_ids, 'pred_str': pred_str, "label_str": label_str, "cer": cer, "wer": wer})
-        wandb.log({'pred_ids': pred_ids, 'pred_str': pred_str, "label_str": label_str, "cer": cer, "wer": wer})
+        print({ 'pred_str': pred_str, "label_str": label_str, "cer": cer, "wer": wer})
+        wandb.log({ 'pred_str': pred_str, "label_str": label_str, "cer": cer, "wer": wer})
         return {"cer": cer, "wer": wer}
 
     class FreezingCallback(TrainerCallback):
@@ -155,7 +153,7 @@ def main(arg=None):
                                             selftype=selftype)
 
     training_args = TrainingArguments(
-        output_dir=f"./checkpoints",
+        output_dir=f"./checkpoints/{input_args.get('local', int(random.random()*100))}",
         per_device_train_batch_size=int(input_args['batch']),
         per_device_eval_batch_size=int(input_args['batch']),
         gradient_accumulation_steps=int(input_args['grad_accum']),
@@ -196,6 +194,12 @@ def main(arg=None):
 
     if input_args.get('eval', False):
         trainer.evaluate()
+    elif input_args.get('test', False):
+        with torch.no_grad():
+          test_ds = test_ds.select(range(100))
+          res = trainer.predict(test_ds)
+          wandb.log({res})
+          print(res)
     else:
         trainer.train()
         trainer.save_model(f"./models/{input_args.get('local')}")
