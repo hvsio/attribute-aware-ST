@@ -57,12 +57,20 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             nlp_model_config = config.to_dict().get('decoder')['_name_or_path']
         else:
             config = SpeechMixConfig.from_configs(speech_model_config, nlp_model_config)
-        super(HFSpeechMixEEDmBart, self).__init__(config)
 
+        super(HFSpeechMixEEDmBart, self).__init__(config)
         self.encoder_model = Wav2Vec2Model
-        self.encoder_model = self.encoder_model.from_pretrained(speech_model_config)
+
+        if kwargs.pop("vanilla"):
+            print("Initializing model w/o weights...")
+            config_wav = AutoConfig.from_pretrained(speech_model_config)
+            config_bart = AutoConfig.from_pretrained(nlp_model_config)
+            self.encoder_model = self.encoder_model.from_config(config_wav)
+            self.decoder_model = MBartForConditionalGeneration.from_config(config_bart)
+        else:
+            self.encoder_model = self.encoder_model.from_pretrained(speech_model_config)
+            self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
         self.processor = Wav2Vec2Processor.from_pretrained(speech_model_config)
-        self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
         self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="en_XX", tgt_lang="ja_XX")
         self.weighted_sum = weighted_sum
         num_nlp_encoder_layers = 0
