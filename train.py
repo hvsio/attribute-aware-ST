@@ -2,6 +2,8 @@ import sys
 from dataclasses import dataclass
 from typing import Dict, List, Union, Optional
 import os
+import random
+random.random
 
 import asrp
 import torch
@@ -141,7 +143,8 @@ def main(arg=None):
         print('load datasets')
         train_ds = load_from_disk(
             f"{input_args['custom_set_path']}/transformers/train_cuda:0_en_HF_EED_mbart_cuda.data/train")
-        dev_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/test_cpu_en_HF_EED_mbart.data/train")
+        dev_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/train_cuda:0_en_HF_EED_mbart_cuda.data/train")
+        test_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/train_cuda:0_en_HF_EED_mbart_cuda.data/train")
         print('datasets loaded')
         train_ds = train_ds.remove_columns(
             ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
@@ -195,7 +198,7 @@ def main(arg=None):
         trainer.evaluate()
     else:
         trainer.train()
-        trainer.save_model(f"./models/{input_args.get('modelpath')}")
+        trainer.save_model(f"./models/{input_args.get('local')}")
 
 
 if __name__ == "__main__":
