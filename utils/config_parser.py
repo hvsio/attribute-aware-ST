@@ -30,7 +30,8 @@ def parse_args(args):
     parser.add_argument("--custom_set_path", type=str)
     parser.add_argument("--max_input_length_in_sec", default=20, type=int)
     parser.add_argument("--group_by_length", action="store_true")
-    parser.add_argument("--local", default=date.today().strftime("%d-%m-%Y--%H-%M"), type=str)
+    parser.add_argument("--modelpath", default=date.today().strftime("%d-%m-%Y--%H-%M"), type=str)
+    parser.add_argument("--local", type=str)
     parser.add_argument("--eval", default=False, type=bool)
     parser.add_argument("--test", default=False, type=bool)
     parser.add_argument('--fixed_except', nargs='+',

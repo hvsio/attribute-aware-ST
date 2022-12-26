@@ -69,7 +69,7 @@ def get_model(input_args, local=''):
     if local:
         print("loading checkpoint")
         config = SpeechMixConfig.from_json_file(f'./checkpoints/{local}/config.json')
-        checkpoint = torch.load(f'./checkpoints/{local}/pytorch_model.bin', map_location=torch.device('cpu'))
+        checkpoint = torch.load(f'./checkpoints/{local}/pytorch_model.bin')
         model = HFSpeechMixEEDmBart(config)
         model.load_state_dict(checkpoint, strict=False)
     else:
@@ -145,13 +145,12 @@ def main(arg=None):
         print('load datasets')
         train_ds = load_from_disk(
             f"{input_args['custom_set_path']}/transformers/train_cuda:0_en_HF_EED_mbart_cuda.data/train")
-        dev_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/train_cuda:0_en_HF_EED_mbart_cuda.data/train")
-        test_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/train_cuda:0_en_HF_EED_mbart_cuda.data/train")
+        dev_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/validation_cuda:0_en_HF_EED_mbart_cuda.data/train")
+        test_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/test_cuda:0_en_HF_EED_mbart_cuda.data/train")
         print('datasets loaded')
         train_ds = train_ds.remove_columns(
             ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
              'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
-        train_ds = train_ds.select(range(10))
 
     data_collator = DataCollatorWithPadding(tokenizer=model.tokenizer, padding=True,
                                             selftype=selftype)
@@ -206,7 +205,7 @@ def main(arg=None):
           print(res)
     else:
         trainer.train()
-        trainer.save_model(f"./models/{input_args.get('local')}")
+        trainer.save_model(f"./models/{input_args.get('modelpath')}")
 
 
 if __name__ == "__main__":
