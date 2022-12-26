@@ -68,8 +68,8 @@ class DataCollatorWithPadding:
 def get_model(input_args, local=''):
     if local:
         print(f"loading checkpoint {local}")
-        config = SpeechMixConfig.from_json_file(f'./checkpoints/{local}/config.json')
-        checkpoint = torch.load(f'./checkpoints/{local}/pytorch_model.bin')
+        config = SpeechMixConfig.from_json_file(f'./{local}/config.json')
+        checkpoint = torch.load(f'./{local}/pytorch_model.bin')
         model = HFSpeechMixEEDmBart(config)
         model.load_state_dict(checkpoint, strict=False)
     else:
