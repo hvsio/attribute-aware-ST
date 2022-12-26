@@ -202,7 +202,7 @@ def main(arg=None):
         with torch.no_grad():
           test_ds = test_ds.select(range(100))
           res = trainer.predict(test_ds)
-          wandb.log({res})
+          wandb.log(res)
           print(res)
     else:
         trainer.train()
