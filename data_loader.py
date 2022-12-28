@@ -50,7 +50,6 @@ class DataLoader:
         batch["input_text_prompt"] = input_text_prompt
         batch["text_input_ids"] = decoder_input
         batch["labels"] = decoder_target
-        batch["labels"] += [self.model.tokenizer.eos_token_id]
 
         return batch
 
