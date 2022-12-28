@@ -30,6 +30,7 @@ class DataCollatorWithPadding:
     # text_input_ids, input_values, labels
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
         batch = {}
+        print("data collator")
         batch['input_values'] = pad_sequence([torch.tensor(feature["input_values"]) for feature in features],
                                              batch_first=True, padding_value=-100)
 
@@ -161,7 +162,7 @@ def main(arg=None):
     data_collator = DataCollatorWithPadding(tokenizer=model.tokenizer, padding=True, selftype=selftype)
 
     training_args = TrainingArguments(
-        output_dir=f"./checkpoints/{input_args.get('local', int(random.random()*100))}",
+        output_dir=f"./checkpoints/{input_args.get('modelpath', int(random.random()*100))}",
         per_device_train_batch_size=int(input_args['batch']),
         per_device_eval_batch_size=int(input_args['batch']),
         gradient_accumulation_steps=int(input_args['grad_accum']),

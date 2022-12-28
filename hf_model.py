@@ -258,6 +258,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
     ):
         # input_values, text_input_ids, decoder_input_ids, labels,
         return_dict = {}
+        print("forward")
         if encoder_outputs is None:
             # last_hidden_state, extract_features, hidden_states, attentions (None)
             encoder_outputs = self.encoder_model(input_values, output_hidden_states=True)
