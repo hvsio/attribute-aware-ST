@@ -28,7 +28,7 @@ class DataLoader:
         gen_input = source_tokenizer(input_sent, add_special_tokens=True, return_tensors="pt").input_ids
         predicted = target_tokenizer(golden_sentence, add_special_tokens=True, return_tensors="pt").input_ids
 
-        return gen_input, predicted[1:]
+        return gen_input, predicted
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
         filename = batch[f"{lang}_wav"]
