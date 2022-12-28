@@ -85,7 +85,7 @@ input_args = {'speech_model_config': 'facebook/wav2vec2-large-960h-lv60-self', '
               'save_total_limit': 2, 'max_grad_norm': 10, 'worker': 15, 'batch': 3, 'epoch': 30, 'lr': 4e-05,
               'eval_step': 700, 'share_layer_ratio': 0.5, 'down_scale': 2, 'weighted_sum': False,
               'fixed_parameters': False, 'custom_set_path': 'speechBSD', 'max_input_length_in_sec': 20,
-              'group_by_length': False,
+              'group_by_length': False, 'source-lang': 'en',
               'fixed_except': ['layer_norm', 'encoder_attn', 'enc_to_dec_proj', 'length_adapter', 'layernorm_embedding',
                                'attention', 'encoder'], 'fp16': False, 'wandb': True}
 
