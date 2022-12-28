@@ -220,16 +220,16 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
         if inputs_embeds is not None:
             output = self.decoder_model(
                 inputs_embeds=inputs_embeds,
-                encoder_outputs=decoder_outputs if decoder_outputs else self.decoder_outputs,
-                attention_mask=attention_mask,
-                decoder_input_ids=decoder_input_ids,
+                encoder_outputs=decoder_outputs if decoder_outputs else self.decoder_outputs, #sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention of the decoder.
+                attention_mask=attention_mask, #to avoid performing attention on padding token indices.
+                decoder_input_ids=decoder_input_ids, #Indices of decoder input sequence tokens in the vocabulary
                 labels=labels,
                 past_key_values=past_key_values,
                 use_cache=use_cache,
             )
         elif text_input_ids is not None:
             output = self.decoder_model(
-                input_ids=text_input_ids,
+                input_ids=text_input_ids, #Indices of input sequence tokens in the vocabulary
                 encoder_outputs=decoder_outputs if decoder_outputs else self.decoder_outputs,
                 decoder_input_ids=decoder_input_ids,
                 labels=labels,
@@ -243,8 +243,8 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             self,
             input_values=None, #audio inputs
             decoder_text_prompt=None,
-            text_input_ids=None, #encoder transciption
-            decoder_input_ids=None, #decoder source input
+            text_input_ids=None, #source transciption
+            decoder_input_ids=None, #target transcription
             labels=None,
             encoder_outputs=None,
             decoder_outputs=None,
