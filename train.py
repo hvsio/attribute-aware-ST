@@ -154,19 +154,11 @@ def main(arg=None):
         dev_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/validation_cuda:0_en_HF_EED_mbart_fixedtarget.data/train")
         test_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/test_cuda:0_en_HF_EED_mbart_fixedtarget.data/train")
         print('datasets loaded')
-        train_ds = train_ds.remove_columns(
-            ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
-             'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
-       dev_ds = dev_ds.remove_columns(
-            ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
-             'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
-       test_ds = test_ds.remove_columns(
-            ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
-             'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
+        train_ds = train_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
+        dev_ds = dev_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
+        test_ds = test_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav','ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
 
-
-    data_collator = DataCollatorWithPadding(tokenizer=model.tokenizer, padding=True,
-                                            selftype=selftype)
+    data_collator = DataCollatorWithPadding(tokenizer=model.tokenizer, padding=True, selftype=selftype)
 
     training_args = TrainingArguments(
         output_dir=f"./checkpoints/{input_args.get('local', int(random.random()*100))}",
