@@ -150,13 +150,20 @@ def main(arg=None):
     if 'custom_set_path' in input_args:
         print('load datasets')
         train_ds = load_from_disk(
-            f"{input_args['custom_set_path']}/transformers/train_cuda:0_en_HF_EED_mbart_cuda.data/train")
-        dev_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/validation_cuda:0_en_HF_EED_mbart_cuda.data/train")
-        test_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/test_cuda:0_en_HF_EED_mbart_cuda.data/train")
+            f"{input_args['custom_set_path']}/transformers/train_cuda:0_en_HF_EED_mbart_fixedtarget.data/train")
+        dev_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/validation_cuda:0_en_HF_EED_mbart_fixedtarget.data/train")
+        test_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/test_cuda:0_en_HF_EED_mbart_fixedtarget.data/train")
         print('datasets loaded')
         train_ds = train_ds.remove_columns(
             ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
              'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
+       dev_ds = dev_ds.remove_columns(
+            ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
+             'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
+       test_ds = test_ds.remove_columns(
+            ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
+             'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
+
 
     data_collator = DataCollatorWithPadding(tokenizer=model.tokenizer, padding=True,
                                             selftype=selftype)
