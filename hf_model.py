@@ -40,7 +40,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             share_layer_ratio=0.5,
             down_scale=8,
             weighted_sum=False,
-            fixed_parameters=False,
+            fixed_parameters=True,
             fixed_except=[
                 "layer_norm",
                 "encoder_attn",
@@ -60,19 +60,16 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 
         super(HFSpeechMixEEDmBart, self).__init__(config)
 
-        if kwargs.pop("vanilla"):
-            print("Initializing model w/o weights...")
-            config_wav = AutoConfig.from_pretrained(speech_model_config)
-            config_bart = AutoConfig.from_pretrained(nlp_model_config)
-            self.encoder_model = Wav2Vec2Model(config_wav)
-            self.decoder_model = MBartForConditionalGeneration(config_bart)
-        else:
-            self.encoder_model = self.Wav2Vec2Model.from_pretrained(speech_model_config)
-            self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
+        self.encoder_model = Wav2Vec2Model.from_pretrained(speech_model_config)
+        self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
         self.processor = Wav2Vec2Processor.from_pretrained(speech_model_config)
-        self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="en_XX", tgt_lang="ja_XX")
+        self.tokenizerENJA = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="en_XX", tgt_lang="ja_XX")
+        self.tokenizerJAEN = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="ja_XX", tgt_lang="en_XX")
         self.weighted_sum = weighted_sum
+        source_lang = kwargs.pop("source-lang")
         num_nlp_encoder_layers = 0
+
+        self.tokenizer = self.tokenizerENJA if source_lang == "en" else self.tokenizerJAEN
 
         if hasattr(self.decoder_model.base_model.encoder, "layers"):
             num_nlp_encoder_layers = len(
@@ -305,9 +302,6 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             inputs_embeds = torch.cat((text_prompt.expand(inputs_embeds.shape[0], -1, -1), inputs_embeds), 1)
         if decoder_text_prompt is not None and text_input_ids is not None:
             assert ("Can only take str or input_ids as input, but not both")
-        elif text_input_ids is not None:
-            text_prompt = self.nlp_emb(text_input_ids.to(self.device))
-            inputs_embeds = torch.cat((text_prompt.expand(inputs_embeds.shape[0], -1, -1), inputs_embeds), 1)
         outputs = self.cal_loss(
             inputs_embeds=inputs_embeds,
             decoder_outputs=decoder_outputs,

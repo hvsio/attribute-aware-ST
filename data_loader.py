@@ -4,7 +4,6 @@ import torchaudio
 import torch
 from transformers import logging, Wav2Vec2FeatureExtractor, Wav2Vec2Tokenizer, Wav2Vec2Processor
 from hf_model import HFSpeechMixEEDmBart
-import random
 import re
 
 logging.set_verbosity_info()
@@ -22,27 +21,18 @@ class DataLoader:
         self.cache = cache
         self.path = path
 
-    def _create_self_decoder_input(self, decoder_model, tokenizer, input_sent, device):
-        rnd = int(random.uniform(1, 10)) % 9 == 0
-        gen_input = tokenizer(input_sent, add_special_tokens=True, return_tensors="pt").input_ids
-        predicted = [decoder_model.config.decoder_start_token_id]
-        with torch.no_grad():
-            decoder_model.eval()
-            decoder_length = max(decoder_model.config.max_length, len(gen_input))
-            for _ in range(decoder_length):
-                max_item = torch.argmax(
-                    decoder_model(input_ids=torch.tensor(gen_input, device=device),
-                                  output_hidden_states=True,
-                                  decoder_input_ids=torch.tensor(
-                                      [predicted],
-                                      device=device)).logits, -1)[:, -1].item()
-                if decoder_model.config.eos_token_id == max_item:
-                    break
-                predicted.append(max_item)
+    def _create_self_decoder_input(self, enja_tokenizer, jaen_tokenizer, input_sent, golden_sentence, lang):
+        target_tokenizer = enja_tokenizer if lang == "en" else jaen_tokenizer
+        source_tokenizer = enja_tokenizer if lang == "en" else jaen_tokenizer
+
+        gen_input = source_tokenizer(input_sent, add_special_tokens=True, return_tensors="pt").input_ids
+        predicted = target_tokenizer(golden_sentence, add_special_tokens=True, return_tensors="pt").input_ids
+
         return gen_input, predicted[1:]
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
         filename = batch[f"{lang}_wav"]
+        target_lang = "ja" if lang == "en" else "en"
         speech, sampling_rate = torchaudio.load(f"{self.path}/wav/{split_type}/{filename}")
         resampler = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16_000)
         input_values = self.processor(resampler(speech).squeeze().numpy(), sampling_rate=16_000).input_values[0]
@@ -50,11 +40,13 @@ class DataLoader:
 
         batch["lengths"] = len(batch["input_values"])
         sent = re.sub(self.chars_to_ignore_regex, '', batch[f"{lang}_sentence"]).lower()
+        golden_sentence = re.sub(self.chars_to_ignore_regex, '', batch[f"{target_lang}_sentence"]).lower()
         #sent = batch[f"{lang}_sentence"].lower()
 
-        decoder_input, decoder_target = self._create_self_decoder_input(self.model.decoder_model, self.model.tokenizer,
+        decoder_input, decoder_target = self._create_self_decoder_input(self.model.tokenizerENJA, self.model.tokenizerJAEN,
                                                                         input_text_prompt + sent,
-                                                                        next(self.model.parameters()).device)
+                                                                        golden_sentence,
+                                                                        lang)
         batch["input_text_prompt"] = input_text_prompt
         batch["text_input_ids"] = decoder_input
         batch["labels"] = decoder_target
@@ -99,8 +91,8 @@ input_args = {'speech_model_config': 'facebook/wav2vec2-large-960h-lv60-self', '
 
 model_type = "HFSpeechMixEEDmBart"
 model = HFSpeechMixEEDmBart(**input_args)
-device = torch.device("cuda")
-model.to(device)
-print(next(model.parameters()).device)
+# device = torch.device("cuda")
+# model.to(device)
+# print(next(model.parameters()).device)
 dl = DataLoader(model, False, "speechBSD")
-dl.load_custom_datasets("validation", "en", False, "HF_EED_mbart_cuda")
+dl.load_custom_datasets("validation", "en", False, "HF_EED_mbart_fixedtarget")
