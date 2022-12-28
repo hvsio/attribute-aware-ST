@@ -11,6 +11,7 @@ from transformers import Trainer, TrainingArguments, EarlyStoppingCallback, Auto
     TrainerState, TrainerControl, logging
 from utils.config_parser import parse_args
 from hf_model import HFSpeechMixEEDmBart, SpeechMixConfig
+from datetime import datetime
 import wandb
 
 logging.set_verbosity_info()
@@ -160,9 +161,10 @@ def main(arg=None):
         test_ds = test_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav','ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
 
     data_collator = DataCollatorWithPadding(tokenizer=model.tokenizer, padding=True, selftype=selftype)
+    temp_id = now = datetime.now()
 
     training_args = TrainingArguments(
-        output_dir=f"./checkpoints/{input_args.get('modelpath', int(random.random()*100))}",
+        output_dir=f"./checkpoints/{input_args.get('modelpath', temp_id.strftime('%d/%m/%Y-%H.%M'))}",
         per_device_train_batch_size=int(input_args['batch']),
         per_device_eval_batch_size=int(input_args['batch']),
         gradient_accumulation_steps=int(input_args['grad_accum']),
