@@ -63,13 +63,11 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
         self.encoder_model = Wav2Vec2Model.from_pretrained(speech_model_config)
         self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
         self.processor = Wav2Vec2Processor.from_pretrained(speech_model_config)
-        self.tokenizerENJA = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="en_XX", tgt_lang="ja_XX")
-        self.tokenizerJAEN = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="ja_XX", tgt_lang="en_XX")
+        self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="en_XX", tgt_lang="ja_XX")
+        #self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="ja_XX", tgt_lang="en_XX")
         self.weighted_sum = weighted_sum
-        source_lang = kwargs.pop("source_lang")
         num_nlp_encoder_layers = 0
 
-        self.tokenizer = self.tokenizerENJA if source_lang == "en" else self.tokenizerJAEN
 
         if hasattr(self.decoder_model.base_model.encoder, "layers"):
             num_nlp_encoder_layers = len(
@@ -258,7 +256,6 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
     ):
         # input_values, text_input_ids, decoder_input_ids, labels,
         return_dict = {}
-        print("forward")
         if encoder_outputs is None:
             # last_hidden_state, extract_features, hidden_states, attentions (None)
             encoder_outputs = self.encoder_model(input_values, output_hidden_states=True)
