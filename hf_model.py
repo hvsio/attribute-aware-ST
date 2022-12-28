@@ -66,7 +66,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
         self.tokenizerENJA = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="en_XX", tgt_lang="ja_XX")
         self.tokenizerJAEN = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="ja_XX", tgt_lang="en_XX")
         self.weighted_sum = weighted_sum
-        source_lang = kwargs.pop("source-lang")
+        source_lang = kwargs.pop("source_lang")
         num_nlp_encoder_layers = 0
 
         self.tokenizer = self.tokenizerENJA if source_lang == "en" else self.tokenizerJAEN
