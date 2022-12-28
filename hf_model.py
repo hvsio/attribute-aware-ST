@@ -241,10 +241,10 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 
     def forward(
             self,
-            input_values=None,
+            input_values=None, #audio inputs
             decoder_text_prompt=None,
-            text_input_ids=None,
-            decoder_input_ids=None,
+            text_input_ids=None, #encoder transciption
+            decoder_input_ids=None, #decoder source input
             labels=None,
             encoder_outputs=None,
             decoder_outputs=None,

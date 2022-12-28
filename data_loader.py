@@ -91,8 +91,8 @@ input_args = {'speech_model_config': 'facebook/wav2vec2-large-960h-lv60-self', '
 
 model_type = "HFSpeechMixEEDmBart"
 model = HFSpeechMixEEDmBart(**input_args)
-# device = torch.device("cuda")
-# model.to(device)
-# print(next(model.parameters()).device)
+device = torch.device("cuda")
+model.to(device)
+print(next(model.parameters()).device)
 dl = DataLoader(model, False, "speechBSD")
 dl.load_custom_datasets("validation", "en", False, "HF_EED_mbart_fixedtarget")
