@@ -31,7 +31,6 @@ class DataCollatorWithPadding:
     # text_input_ids, input_values, labels
     def __call__(self, features: List[Dict[str, Union[List[int], torch.Tensor]]]) -> Dict[str, torch.Tensor]:
         batch = {}
-        print("data collator")
         batch['input_values'] = pad_sequence([torch.tensor(feature["input_values"]) for feature in features],
                                              batch_first=True, padding_value=-100)
 
@@ -108,13 +107,15 @@ def main(arg=None):
         gold_sentences = [[l] for l in label_str]
 
         sacrebleu = evaluate.load("sacrebleu")
-        bleu_score = sacrebleu.compute(predictions=pred_str, references = gold_sentences)
+        bleu_score = sacrebleu.compute(predictions=pred_str, references=gold_sentences)
 
         # for l, p in zip(label_str, pred_str):
         #     print(l, "======", p)
         cer = asrp.cer(label_str, pred_str)
         wer = asrp.wer(label_str, pred_str)
-        print({ 'pred_str': pred_str, "label_str": label_str})
+        print("PRED vs GOLD")
+        for i in range(20):
+            print(f"{pred_str[i]}   ---   {label_str[i]}")
         print({"cer": cer, "wer": wer, "bleu": bleu_score['score']})
         wandb.log({ "cer": cer, "wer": wer, "bleu": bleu_score['score']})
         return {"cer": cer, "wer": wer, "bleu": bleu_score['score']}
