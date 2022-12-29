@@ -22,24 +22,12 @@ class DataLoader:
         self.cache = cache
         self.path = path
 
-    def _create_self_decoder_input(self, decoder_model, tokenizer, input_sent, target_sent, device):
+    def _create_self_decoder_input(self, tokenizer, reverse_tokenizer, input_sent, target_sent, device):
         rnd = int(random.uniform(1, 10)) % 9 == 0
         gen_input = tokenizer(input_sent, text_target=target_sent, add_special_tokens=True, return_tensors="pt").input_ids
-        predicted = [decoder_model.config.decoder_start_token_id]
-        with torch.no_grad():
-            decoder_model.eval()
-            decoder_length = max(decoder_model.config.max_length, len(gen_input))
-            for _ in range(decoder_length):
-                max_item = torch.argmax(
-                    decoder_model(input_ids=torch.tensor(gen_input, device=device),
-                                  output_hidden_states=True,
-                                  decoder_input_ids=torch.tensor(
-                                      [predicted],
-                                      device=device)).logits, -1)[:, -1].item()
-                if decoder_model.config.eos_token_id == max_item:
-                    break
-                predicted.append(max_item)
-        return gen_input, predicted[1:]
+        predicted = reverse_tokenizer(target_sent, text_target=input_sent, add_special_tokens=True, return_tensors="pt").input_ids
+        print(predicted)
+        return gen_input, predicted[0]
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
         filename = batch[f"{lang}_wav"]
@@ -52,7 +40,8 @@ class DataLoader:
         source_sent = re.sub(self.chars_to_ignore_regex, '', batch[f"{lang}_sentence"]).lower()
         target_sent = re.sub(self.chars_to_ignore_regex, '', batch[f"{'ja' if lang == 'en' else 'en'}_sentence"]).lower()
 
-        decoder_input, decoder_target = self._create_self_decoder_input(self.model.decoder_model, self.model.tokenizer,
+        decoder_input, decoder_target = self._create_self_decoder_input(self.model.tokenizer,
+                                                                        self.model.reverse_tokenizer,
                                                                         input_text_prompt + source_sent,
                                                                         target_sent,
                                                                         next(self.model.parameters()).device)

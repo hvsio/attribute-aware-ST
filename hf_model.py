@@ -60,11 +60,13 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 
         super(HFSpeechMixEEDmBart, self).__init__(config)
 
+        source_lang = "en_XX"
+        target_lang = "ja_XX"
         self.encoder_model = Wav2Vec2Model.from_pretrained(speech_model_config)
         self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
         self.processor = Wav2Vec2Processor.from_pretrained(speech_model_config)
-        self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="en_XX", tgt_lang="ja_XX")
-        #self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang="ja_XX", tgt_lang="en_XX")
+        self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
+        self.reverse_tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=target_lang, tgt_lang=source_lang)
         self.weighted_sum = weighted_sum
         num_nlp_encoder_layers = 0
 
