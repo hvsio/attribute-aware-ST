@@ -22,15 +22,9 @@ class DataLoader:
         self.cache = cache
         self.path = path
 
-<<<<<<< HEAD
     def _create_self_decoder_input(self, decoder_model, tokenizer, input_sent, target_sent, device):
         rnd = int(random.uniform(1, 10)) % 9 == 0
         gen_input = tokenizer(input_sent, text_target=target_sent, add_special_tokens=True, return_tensors="pt").input_ids
-=======
-    def _create_self_decoder_input(self, decoder_model, tokenizer, input_sent, device):
-        rnd = int(random.uniform(1, 10)) % 9 == 0
-        gen_input = tokenizer(input_sent, add_special_tokens=True, return_tensors="pt").input_ids
->>>>>>> 3e757cab3775127612dacbdae61bb9135ca11673
         predicted = [decoder_model.config.decoder_start_token_id]
         with torch.no_grad():
             decoder_model.eval()
@@ -55,21 +49,12 @@ class DataLoader:
         batch["input_values"] = input_values
 
         batch["lengths"] = len(batch["input_values"])
-<<<<<<< HEAD
         source_sent = re.sub(self.chars_to_ignore_regex, '', batch[f"{lang}_sentence"]).lower()
         target_sent = re.sub(self.chars_to_ignore_regex, '', batch[f"{'ja' if lang == 'en' else 'en'}_sentence"]).lower()
-        #sent = batch[f"{lang}_sentence"].lower()
 
         decoder_input, decoder_target = self._create_self_decoder_input(self.model.decoder_model, self.model.tokenizer,
                                                                         input_text_prompt + source_sent,
                                                                         target_sent,
-=======
-        sent = re.sub(self.chars_to_ignore_regex, '', batch[f"{lang}_sentence"]).lower()
-        #sent = batch[f"{lang}_sentence"].lower()
-
-        decoder_input, decoder_target = self._create_self_decoder_input(self.model.decoder_model, self.model.tokenizer,
-                                                                        input_text_prompt + sent,
->>>>>>> 3e757cab3775127612dacbdae61bb9135ca11673
                                                                         next(self.model.parameters()).device)
         batch["input_text_prompt"] = input_text_prompt
         batch["text_input_ids"] = decoder_input
@@ -119,8 +104,4 @@ device = torch.device("cuda")
 model.to(device)
 print(next(model.parameters()).device)
 dl = DataLoader(model, False, "speechBSD")
-<<<<<<< HEAD
-dl.load_custom_datasets("validation", "en", False, "HF_EED_mbart_cuda")
-=======
-dl.load_custom_datasets("validation", "en", False, "HF_EED_mbart_jptext")
->>>>>>> 3e757cab3775127612dacbdae61bb9135ca11673
+dl.load_custom_datasets("train", "en", False, "HF_EED_mbart_mbarttok")
