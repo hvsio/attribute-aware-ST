@@ -14,7 +14,6 @@ class DataLoader:
 
     def __init__(self, model, cache, path):
         self.wav = "facebook/wav2vec2-large-960h-lv60-self"
-        self.chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
         self.wavTokenizer = Wav2Vec2Tokenizer.from_pretrained(self.wav)
         self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.wav)
         self.processor = Wav2Vec2Processor(self.feature_extractor, self.wavTokenizer)
@@ -26,7 +25,6 @@ class DataLoader:
         rnd = int(random.uniform(1, 10)) % 9 == 0
         gen_input = tokenizer(input_sent, text_target=target_sent, add_special_tokens=True, return_tensors="pt").input_ids
         predicted = reverse_tokenizer(target_sent, text_target=input_sent, add_special_tokens=True, return_tensors="pt").input_ids
-        print(predicted)
         return gen_input, predicted[0]
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
@@ -37,8 +35,8 @@ class DataLoader:
         batch["input_values"] = input_values
 
         batch["lengths"] = len(batch["input_values"])
-        source_sent = re.sub(self.chars_to_ignore_regex, '', batch[f"{lang}_sentence"]).lower()
-        target_sent = re.sub(self.chars_to_ignore_regex, '', batch[f"{'ja' if lang == 'en' else 'en'}_sentence"]).lower()
+        source_sent = batch[f"{lang}_sentence"]
+        target_sent = batch[f"{'ja' if lang == 'en' else 'en'}_sentence"]
 
         decoder_input, decoder_target = self._create_self_decoder_input(self.model.tokenizer,
                                                                         self.model.reverse_tokenizer,
@@ -48,7 +46,6 @@ class DataLoader:
         batch["input_text_prompt"] = input_text_prompt
         batch["text_input_ids"] = decoder_input
         batch["labels"] = decoder_target
-        batch["labels"] += [self.model.tokenizer.eos_token_id]
 
         return batch
 
@@ -93,4 +90,4 @@ device = torch.device("cuda")
 model.to(device)
 print(next(model.parameters()).device)
 dl = DataLoader(model, False, "speechBSD")
-dl.load_custom_datasets("train", "en", False, "HF_EED_mbart_mbarttok")
+dl.load_custom_datasets("train", "en", False, "mbarttoklabel_nolower")

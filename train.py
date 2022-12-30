@@ -152,9 +152,9 @@ def main(arg=None):
     if 'custom_set_path' in input_args:
         print('load datasets')
         train_ds = load_from_disk(
-            f"{input_args['custom_set_path']}/transformers/train_cuda:0_en_HF_EED_mbart_cuda.data/train")
-        dev_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/validation_cuda:0_en_HF_EED_mbart_cuda.data/train")
-        test_ds = load_from_disk(f"{input_args['custom_set_path']}/transformers/test_cuda:0_en_HF_EED_mbart_cuda.data/train")
+            f"{/mnt/osmanthus/aklharas/input_args['custom_set_path']}/transformers/train_cuda:0_en_mbarttoklabel_nolower.data/train")
+        dev_ds = load_from_disk(f"{/mnt/osmanthus/aklharas/input_args['custom_set_path']}/transformers/validation_cuda:0_en_mbarttoklabel_nolower.data/train")
+        test_ds = load_from_disk(f"{/mnt/osmanthus/aklharas/input_args['custom_set_path']}/transformers/test_cuda:0_en_mbarttoklabel_nolower.data/train")
         print('datasets loaded')
         train_ds = train_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
         dev_ds = dev_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
@@ -164,7 +164,7 @@ def main(arg=None):
     temp_id = now = datetime.now()
 
     training_args = TrainingArguments(
-        output_dir=f"./checkpoints/{input_args.get('modelpath', temp_id.strftime('%d/%m/%Y-%H.%M'))}",
+        output_dir=f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath', temp_id.strftime('%d/%m/%Y-%H.%M'))}",
         per_device_train_batch_size=int(input_args['batch']),
         per_device_eval_batch_size=int(input_args['batch']),
         gradient_accumulation_steps=int(input_args['grad_accum']),
@@ -213,7 +213,7 @@ def main(arg=None):
           print(res)
     else:
         trainer.train()
-        trainer.save_model(f"./models/{input_args.get('modelpath')}")
+        trainer.save_model(f"/mnt/osmanthus/aklharas/models/{input_args.get('modelpath')}")
 
 
 if __name__ == "__main__":
