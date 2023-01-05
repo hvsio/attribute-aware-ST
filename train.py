@@ -8,6 +8,10 @@ from datasets import load_from_disk
 from torch.nn.utils.rnn import pad_sequence
 from transformers import Trainer, TrainingArguments, EarlyStoppingCallback, AutoTokenizer, TrainerCallback, \
     TrainerState, TrainerControl, logging
+from transformers.optimization import (
+    Adafactor,
+    get_linear_schedule_with_warmup,
+)
 from utils.config_parser import parse_args
 from hf_model import HFSpeechMixEEDmBart, SpeechMixConfig
 from datetime import datetime
@@ -68,8 +72,8 @@ class DataCollatorWithPadding:
 def get_model(input_args, local=''):
     if local:
         print(f"loading checkpoint {local}")
-        config = SpeechMixConfig.from_json_file(f'./{local}/config.json')
-        checkpoint = torch.load(f'./{local}/pytorch_model.bin')
+        config = SpeechMixConfig.from_json_file(f'{local}/config.json')
+        checkpoint = torch.load(f'{local}/pytorch_model.bin')
         model = HFSpeechMixEEDmBart(config)
         model.load_state_dict(checkpoint, strict=False)
     else:
@@ -160,18 +164,23 @@ def main(arg=None):
         dev_ds = dev_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
         test_ds = test_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav','ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
 
+    steps = (20000/(2*int(input_args['batch']))*input_args.get('epoch', 10))
+    print(steps)
+    optimizer = Adafactor(model.parameters(), scale_parameter=False, relative_step=False, warmup_init=False, lr=1e-5)
+    lr_scheduler = get_linear_schedule_with_warmup(optimizer,
+                                               num_training_steps=steps,
+                                               num_warmup_steps=500)
     data_collator = DataCollatorWithPadding(tokenizer=model.tokenizer, padding=True, selftype=selftype)
     temp_id = now = datetime.now()
 
     training_args = TrainingArguments(
         output_dir=f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath', temp_id.strftime('%d/%m/%Y-%H.%M'))}",
-        overwrite_output_dir=True,
+        resume_from_checkpoint=True,
         per_device_train_batch_size=int(input_args['batch']),
         per_device_eval_batch_size=int(input_args['batch']),
         gradient_accumulation_steps=int(input_args['grad_accum']),
         eval_accumulation_steps=3,
         group_by_length=input_args["group_by_length"],
-        optim="adafactor",
         evaluation_strategy="steps",
         load_best_model_at_end=True,
         fp16=input_args.get('fp16', True),
@@ -179,10 +188,10 @@ def main(arg=None):
         save_steps=input_args.get('eval_step', 700),
         eval_steps=input_args.get('eval_step', 3),
         logging_steps=input_args.get('logging_steps', 5),
-        learning_rate=input_args.get('lr', 5e-4),
-        warmup_steps=input_args.get('warmup_steps', 500),
+        #learning_rate=input_args.get('lr', 1e-4),
+        #warmup_steps=input_args.get('warmup_steps', 500),
         save_total_limit=input_args.get('save_total_limit', 2),
-        dataloader_num_workers=input_args.get('worker', 10),
+        dataloader_num_workers=input_args.get('worker', 5),
         report_to=["wandb"],
     )
     # some trainer problem - save all logistics on compute_metrics, cause out of memory, fix:argmax first;
@@ -196,6 +205,7 @@ def main(arg=None):
         eval_dataset=dev_ds,
         data_collator=data_collator,
         tokenizer=model.tokenizer,
+        optimizers=(optimizer, lr_scheduler),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=20)],
     )
 
@@ -214,6 +224,7 @@ def main(arg=None):
           print(res)
     else:
         trainer.train()
+        #trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/tunedBoth/checkpoint-7000")
         trainer.save_model(f"/mnt/osmanthus/aklharas/models/{input_args.get('modelpath')}")
 
 
