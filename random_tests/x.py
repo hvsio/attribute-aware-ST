@@ -12,7 +12,7 @@ sacrebleu = evaluate.load("sacrebleu")
 model = SpeechEncoderDecoderModel.from_pretrained("facebook/wav2vec2-xls-r-1b-en-to-15")
 processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-xls-r-1b-en-to-15")
 
-ds = load_from_disk("speechBSD/transformers/test_cpu_en_HF_EED_mbart.data/train")
+ds = load_from_disk("../speechBSD/transformers/test_cpu_en_HF_EED_mbart.data/train")
 
 rnd = int(random.uniform(0, 2000))
 inputs = processor(ds[rnd]["input_values"], sampling_rate=16000, return_tensors="pt")
