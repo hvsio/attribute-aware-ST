@@ -70,14 +70,13 @@ class DataCollatorWithPadding:
         return batch
 
 
-def get_model(input_args, local=''):
+def get_model(input_args, local='', checkpoint='', encdec=''):
     if local:
         print(f"loading checkpoint {local}")
-        config = SpeechMixConfig.from_json_file(f'{local}/config.json')
-        checkpoint = torch.load(f'{local}/pytorch_model.bin')
+        config = SpeechMixConfig.from_json_file(f'/mnt/osmanthus/aklharas/checkpoints/{local}/{checkpoint}/config.json')
+        checkpoint = torch.load(f'/mnt/osmanthus/aklharas/checkpoints/{local}/{checkpoint}/pytorch_model.bin')
         #model = HFSpeechMixEEDmBart.from_pretrained("/mnt/osmanthus/aklharas/checkpoints/tunedBothAda32/checkpoint-3500", config=config)
-        model = HFSpeechMixEEDmBart(config)
-
+        model = HFSpeechMixEEDmBart(config, load_checkpoint=True, model_path=local, encdec_path=encdec)
         model.load_state_dict(checkpoint, strict=False)
     else:
         model = HFSpeechMixEEDmBart(**input_args)
@@ -90,7 +89,7 @@ def main(arg=None):
     input_args, other_arg = parse_args(sys.argv[1:]) if arg is None else parse_args(arg)
     print("input_args", input_args)
 
-    model, model_type = get_model(input_args, input_args.get('local'))
+    model, model_type = get_model(input_args, input_args.get('local'), input_args.get('checkpoint'), input_args.get('encdec'))
     selftype = 'SpeechMixSelf' in model_type
     if __name__ == '__main__':
         cuda = torch.cuda.is_available()

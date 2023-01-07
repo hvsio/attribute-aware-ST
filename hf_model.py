@@ -51,6 +51,9 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
                 "layernorm_embedding",
                 "attention",
             ],
+            load_checkpoint=False,
+            model_path="",
+            encdec_path="",
             **kwargs,
     ):
         if isinstance(speech_model_config, PretrainedConfig):
@@ -64,8 +67,13 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 
         source_lang = "en_XX"
         target_lang = "ja_XX"
-        self.encoder_model = Wav2Vec2Model.from_pretrained(speech_model_config)
-        self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
+        if load_checkpoint:
+            self.encoder_model = Wav2Vec2Model.from_pretrained(f"/mnt/osmanthus/aklharas/checkpoints/{model_path}/pretrained_weights/{encdec_path}/encoder")
+            self.decoder_model = MBartForConditionalGeneration.from_pretrained(f"/mnt/osmanthus/aklharas/checkpoints/{model_path}/pretrained_weights/{encdec_path}/decoder")
+        else:
+            self.encoder_model = Wav2Vec2Model.from_pretrained(speech_model_config)
+            self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
+
         self.processor = Wav2Vec2Processor.from_pretrained(speech_model_config)
         self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
         self.reverse_tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=target_lang, tgt_lang=source_lang)
