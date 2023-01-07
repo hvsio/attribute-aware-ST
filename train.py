@@ -16,7 +16,7 @@ from utils.config_parser import parse_args
 from hf_model import HFSpeechMixEEDmBart, SpeechMixConfig
 from datetime import datetime
 import wandb
-
+from nltk.translate.bleu_score import sentence_bleu, corpus_bleu
 logging.set_verbosity_info()
 logger = logging.get_logger("trainer")
 
@@ -74,7 +74,9 @@ def get_model(input_args, local=''):
         print(f"loading checkpoint {local}")
         config = SpeechMixConfig.from_json_file(f'{local}/config.json')
         checkpoint = torch.load(f'{local}/pytorch_model.bin')
+        #model = HFSpeechMixEEDmBart.from_pretrained("/mnt/osmanthus/aklharas/checkpoints/tunedBothAda32/checkpoint-3500", config=config)
         model = HFSpeechMixEEDmBart(config)
+
         model.load_state_dict(checkpoint, strict=False)
     else:
         model = HFSpeechMixEEDmBart(**input_args)
@@ -111,6 +113,9 @@ def main(arg=None):
 
         sacrebleu = evaluate.load("sacrebleu")
         bleu_score = sacrebleu.compute(predictions=pred_str, references=gold_sentences)
+        nltk_bleu_score = corpus_bleu(gold_sentences, pred_str)
+        #print(gold_sentences)
+        print(nltk_bleu_score)
 
         # for l, p in zip(label_str, pred_str):
         #     print(l, "======", p)
@@ -120,8 +125,8 @@ def main(arg=None):
         for i in range(20):
             print(f"{pred_str[i]}   ---   {label_str[i]}")
         print({"cer": cer, "wer": wer, "bleu": bleu_score['score']})
-        wandb.log({ "cer": cer, "wer": wer, "bleu": bleu_score['score']})
-        return {"cer": cer, "wer": wer, "bleu": bleu_score['score']}
+        wandb.log({ "cer": cer, "wer": wer, "bleu": nltk_bleu_score})
+        return {"cer": cer, "wer": wer, "bleu": nltk_bleu_score}
 
     class FreezingCallback(TrainerCallback):
         def __init__(self, trainer, freeze_model, freeze_epoch=3):
@@ -221,10 +226,9 @@ def main(arg=None):
           test_ds = test_ds.select(range(100))
           res = trainer.predict(test_ds)
           wandb.log({"test result": res})
-          print(res)
     else:
         trainer.train()
-        #trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/tunedBoth/checkpoint-7000")
+        #trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/tunedBothAda32/checkpoint-2800")
         trainer.save_model(f"/mnt/osmanthus/aklharas/models/{input_args.get('modelpath')}")
 
 
