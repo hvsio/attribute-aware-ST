@@ -17,6 +17,7 @@ from hf_model import HFSpeechMixEEDmBart, SpeechMixConfig
 from datetime import datetime
 import wandb
 from nltk.translate.bleu_score import sentence_bleu, corpus_bleu
+import os
 logging.set_verbosity_info()
 logger = logging.get_logger("trainer")
 
@@ -114,8 +115,20 @@ def main(arg=None):
         sacrebleu = evaluate.load("sacrebleu")
         bleu_score = sacrebleu.compute(predictions=pred_str, references=gold_sentences)
         nltk_bleu_score = corpus_bleu(gold_sentences, pred_str)
-        #print(gold_sentences)
-        print(nltk_bleu_score)
+        path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+        new_weights_files = str(datetime.now())
+        path = path+"/"+new_weights_files
+        pathE = path+"/encoder"
+        pathD = path+"/decoder"
+        os.makedirs(path)
+        os.makedirs(pathE)
+        os.makedirs(pathD)
+
+        model.encoder_model.save_pretrained(pathE)
+        model.decoder_model.save_pretrained(pathD)
 
         # for l, p in zip(label_str, pred_str):
         #     print(l, "======", p)
@@ -124,7 +137,7 @@ def main(arg=None):
         print("PRED vs GOLD")
         for i in range(20):
             print(f"{pred_str[i]}   ---   {label_str[i]}")
-        print({"cer": cer, "wer": wer, "bleu": bleu_score['score']})
+        print({"cer": cer, "wer": wer, "bleu": nltk_bleu_score})
         wandb.log({ "cer": cer, "wer": wer, "bleu": nltk_bleu_score})
         return {"cer": cer, "wer": wer, "bleu": nltk_bleu_score}
 
