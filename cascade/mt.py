@@ -3,7 +3,7 @@ from typing import List, Dict
 
 from datasets import load_dataset, load_from_disk
 from transformers import MBartForConditionalGeneration, BartTokenizer, Seq2SeqTrainingArguments, Seq2SeqTrainer, \
-    MBart50Tokenizer
+    MBart50Tokenizer, DataCollatorForSeq2Seq
 from nltk.translate.bleu_score import corpus_bleu
 import torch
 import wandb
@@ -59,15 +59,7 @@ def run(train=False, test=False, eval=False):
     print(f"CUDA available: {cuda}, device to {device}")
     print(next(model.parameters()).device)
 
-    @dataclass
-    class DataCollator:
-        tokenizer: BartTokenizer
-
-        def __call__(self, features: List) -> Dict[str, torch.Tensor]:
-            print(features[1])
-            return features
-
-    data_collator = DataCollator(tokenizer)
+    data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
 
     train_ds = load_from_disk(f"{PATH}/mt/train_en.data/train")
     validation_ds = load_from_disk(f"{PATH}/mt/validation_en.data/train")
@@ -83,9 +75,10 @@ def run(train=False, test=False, eval=False):
         label_ids = [i[i != -100] for i in label_ids]
         label_str = tokenizer.batch_decode(label_ids, skip_special_tokens=True, group_tokens=False)
 
-        gold_sentences = [[l] for l in label_str]
+        preds = [pred.strip() for pred in pred_str]
+        labels = [[label.strip()] for label in label_str]
 
-        nltk_bleu_score = corpus_bleu(gold_sentences, pred_str)
+        nltk_bleu_score = corpus_bleu(labels, preds)
         print("PRED vs GOLD")
         for i in range(20):
             print(f"{pred_str[i]}   ---   {label_str[i]}")
