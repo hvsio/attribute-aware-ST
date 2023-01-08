@@ -7,7 +7,6 @@ from transformers import MBartForConditionalGeneration, BartTokenizer, Seq2SeqTr
 from nltk.translate.bleu_score import corpus_bleu
 import torch
 import wandb
-import json
 import os
 
 os.environ["WANDB_PROJECT"] = "MT"
@@ -142,5 +141,5 @@ def run(train=False, test=False, eval=False):
 
 
 if __name__ == "__main__":
-    generate_datasets()
-    #run(train=True)
+    #generate_datasets()
+    run(train=True)
