@@ -41,9 +41,8 @@ source_lang = "en"
 target_lang = "ja"
 
 def preprocess_function(examples, tokenizer):
-    print(examples)
-    inputs = [ex[f"{source_lang}_sentence"] for ex in examples]
-    targets = [ex[f"{target_lang}_sentence"] for ex in examples]
+    inputs = examples[f"{source_lang}_sentence"]
+    targets = examples[f"{target_lang}_sentence"]
     model_inputs = tokenizer(inputs, max_length=max_input_length, truncation=True)
     labels = tokenizer(targets, max_length=max_target_length, truncation=True)
     model_inputs["labels"] = labels["input_ids"]
