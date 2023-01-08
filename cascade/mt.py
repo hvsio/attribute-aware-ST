@@ -41,6 +41,7 @@ source_lang = "en"
 target_lang = "ja"
 
 def preprocess_function(examples, tokenizer):
+    print(examples)
     inputs = [ex[f"{source_lang}_sentence"] for ex in examples]
     targets = [ex[f"{target_lang}_sentence"] for ex in examples]
     model_inputs = tokenizer(inputs, max_length=max_input_length, truncation=True)
