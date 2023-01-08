@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Dict
 
-from transformers import BartForConditionalGeneration, BartTokenizer, Seq2SeqTrainingArguments, Seq2SeqTrainer
+from transformers import MBartForConditionalGeneration, BartTokenizer, Seq2SeqTrainingArguments, Seq2SeqTrainer, MBart50Tokenizer
 from nltk.translate.bleu_score import corpus_bleu
 import torch
 import wandb
@@ -17,7 +17,7 @@ PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
 
 def get_model():
     model = BartForConditionalGeneration.from_pretrained(MODEL_ID)
-    tokenizer = BartTokenizer.from_pretrained(MODEL_ID)
+    tokenizer = MBart50Tokenizer.from_pretrained(MODEL_ID)
     return model, tokenizer
 
 
@@ -39,7 +39,7 @@ def generate_datasets():
             })
         print("3. Saving to disk")
         with open(f"{PATH}/mt/{set_name}_{LANG}.json", 'w') as fout:
-            json.dump(ds, fout)
+            json.dump(ds, fout, ensure_ascii=False)
 
 
 def run(train=False, test=False, eval=False):
@@ -58,7 +58,7 @@ def run(train=False, test=False, eval=False):
 
         def __call__(self, features: List) -> Dict[str, torch.Tensor]:
             labels = [f["translation"]["en"] for f in features]
-            inputs = [f["translation"]["hi"] for f in features]
+            inputs = [f["translation"]["ja"] for f in features]
 
             batch = self.tokenizer.prepare_seq2seq_batch(src_texts=inputs, src_lang="en_XX", tgt_lang="ja_XX",
                                                          tgt_texts=labels, max_length=32, max_target_length=32)
