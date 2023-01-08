@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 from typing import List, Dict
 
-from transformers import MBartForConditionalGeneration, BartTokenizer, Seq2SeqTrainingArguments, Seq2SeqTrainer, MBart50Tokenizer
+from datasets import load_dataset
+from transformers import MBartForConditionalGeneration, BartTokenizer, Seq2SeqTrainingArguments, Seq2SeqTrainer, \
+    MBart50Tokenizer
 from nltk.translate.bleu_score import corpus_bleu
 import torch
 import wandb
@@ -16,30 +18,36 @@ PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
 
 
 def get_model():
-    model = BartForConditionalGeneration.from_pretrained(MODEL_ID)
+    model = MBartForConditionalGeneration.from_pretrained(MODEL_ID)
     tokenizer = MBart50Tokenizer.from_pretrained(MODEL_ID)
     return model, tokenizer
 
 
 def generate_datasets():
+    model, tokenizer = get_model()
     sets = ['train', 'test', 'validation']
 
     for set_name in sets:
-        ds = []
         print("1. Loading custom files")
-        f = open(f"{PATH}/{set_name}.json")
-        json_ds = json.load(f)
+        json_ds = load_dataset("json", data_files=f"/mnt/osmanthus/aklharas/speechBSD/transformers/{set_name}.json")
         print("2. Creating custom uncached files")
-        for batch in json_ds:
-            ds.append({
-                "translation": {
-                    "ja": batch["ja_sentence"],
-                    "en": batch["en_sentence"]
-                }
-            })
+        dataset = json_ds.map(preprocess_function, fn_kwargs={"tokenizer": tokenizer})
         print("3. Saving to disk")
-        with open(f"{PATH}/mt/{set_name}_{LANG}.json", 'w') as fout:
-            json.dump(ds, fout, ensure_ascii=False)
+        dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/mt/{set_name}_{LANG}.data")
+
+max_input_length = 128
+max_target_length = 128
+source_lang = "en"
+target_lang = "ja"
+
+def preprocess_function(examples, tokenizer):
+    inputs = [ex[f"{source_lang}_sentence"] for ex in examples]
+    targets = [ex[f"{target_lang}_sentence"] for ex in examples]
+    model_inputs = tokenizer(inputs, max_length=max_input_length, truncation=True)
+    labels = tokenizer(targets, max_length=max_target_length, truncation=True)
+    model_inputs["labels"] = labels["input_ids"]
+    print(model_inputs)
+    return model_inputs
 
 
 def run(train=False, test=False, eval=False):
@@ -57,15 +65,13 @@ def run(train=False, test=False, eval=False):
         tokenizer: BartTokenizer
 
         def __call__(self, features: List) -> Dict[str, torch.Tensor]:
-            labels = [f["translation"]["en"] for f in features]
-            inputs = [f["translation"]["ja"] for f in features]
-
-            batch = self.tokenizer.prepare_seq2seq_batch(src_texts=inputs, src_lang="en_XX", tgt_lang="ja_XX",
-                                                         tgt_texts=labels, max_length=32, max_target_length=32)
-
-            for k in batch:
-                batch[k] = torch.tensor(batch[k])
-            return batch
+            x = [f["translation"]["ja"] for f in features]
+            y = [f["translation"]["en"] for f in features]
+            inputs = tokenizer(x, return_tensors="pt", padding='max_length', truncation=True, max_length=32)
+            with tokenizer.as_target_tokenizer():
+                inputs['labels'] = \
+                    tokenizer(y, return_tensors="pt", padding='max_length', truncation=True, max_length=48)['input_ids']
+            return inputs
 
     data_collator = DataCollator(tokenizer)
 
@@ -119,7 +125,7 @@ def run(train=False, test=False, eval=False):
         model=model,
         data_collator=data_collator,
         args=train_args,
-        compute_metrics=compute_metrics,
+        #compute_metrics=compute_metrics,
         train_dataset=train_ds,
         eval_dataset=validation_ds,
     )
@@ -140,4 +146,4 @@ def run(train=False, test=False, eval=False):
 
 if __name__ == "__main__":
     generate_datasets()
-    run(train=True)
+    #run(train=True)
