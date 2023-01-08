@@ -7,6 +7,7 @@ import numpy as np
 import re
 import wandb
 import torchaudio
+from evaluate import load
 
 LANG = "en"
 MODEL_ID = 'jonatasgrosman/wav2vec2-large-xlsr-53-english'
@@ -14,8 +15,6 @@ MODEL_ID = 'jonatasgrosman/wav2vec2-large-xlsr-53-english'
 
 def get_model():
     processor = Wav2Vec2Processor.from_pretrained(MODEL_ID)
-    feature_extractor = Wav2Vec2FeatureExtractor(feature_size=1, sampling_rate=16000, padding_value=0.0,
-                                                 do_normalize=True, return_attention_mask=False)
     model = Wav2Vec2ForCTC.from_pretrained(MODEL_ID, ctc_loss_reduction="mean", pad_token_id=processor.tokenizer.pad_token_id, )
     return model, processor
 
@@ -24,12 +23,20 @@ def run(train=False, eval=False, test=False):
     wandb.init()
     path = "/mnt/osmanthus/aklharas/speechBSD/transformers"
     model, processor = get_model()
-    wer_metric = load_metric("wer")
-    model.freeze_feature_extractor()
+    print(next(model.parameters()).device)
+    cuda = torch.cuda.is_available()
+    device = torch.device('cuda', 0) if cuda else torch.device('cpu')
+    model.to(device)
+    print(f"CUDA available: {cuda}, device to {device}")
+    print(next(model.parameters()).device)
+    model.freeze_feature_encoder()
 
     train_ds = load_from_disk(f"{path}/asr/train_en.data/train")
     validation_ds = load_from_disk(f"{path}/asr/validation_en.data/train")
     test_ds = load_from_disk(f"{path}/asr/test_en.data/train")
+    train_ds = train_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])
+    validation_ds = validation_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])
+    test_ds = test_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])
 
     def compute_metrics(pred):
         pred_logits = pred.predictions
@@ -41,10 +48,13 @@ def run(train=False, eval=False, test=False):
         # we do not want to group tokens when computing the metrics
         label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
 
-        wer = wer_metric.compute(predictions=pred_str, references=label_str)
-
-        wandb.log({"wer": wer})
-        return {"wer": wer}
+        wer = load("wer")
+        score = wer.compute(predictions=pred_str, references=label_str)
+        print("PRED VS GOLD")
+        for i in range(20):
+         print(f"{pred_str[i]} ---- {label_str[i]}")
+        wandb.log({"wer": score})
+        return {"wer": score}
 
     @dataclass
     class DataCollatorCTCWithPadding:
@@ -108,20 +118,19 @@ def run(train=False, eval=False, test=False):
 
             return batch
 
-    ds = load_from_disk(f"{path}/asr/wav2vecENG.data/train")
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
     train_args = TrainingArguments(
         output_dir="/mnt/osmanthus/aklharas/checkpoints/asr",
         evaluation_strategy="steps",
         per_device_train_batch_size=4,
-        per_device_eval_batch_size=8,
+        per_device_eval_batch_size=2,
         gradient_accumulation_steps=4,
-        group_by_length=True,
-        num_train_epochs=100,
+        #group_by_length=True,
+        num_train_epochs=10,
         fp16=True,
-        gradient_checkpointing=True,
-        save_steps=1000,
-        eval_steps=1000,
+        #gradient_checkpointing=True,
+        save_steps=500,
+        eval_steps=500,
         logging_steps=500,
         learning_rate=1e-4,
         weight_decay=0.005,
@@ -142,7 +151,8 @@ def run(train=False, eval=False, test=False):
     )
 
     if train:
-        trainer.train()
+        #trainer.train()
+        trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/asr/checkpoint-6000")
     elif eval:
         trainer.evaluate()
     elif test:
@@ -158,10 +168,10 @@ def generate_datasets():
 
     for set_name in sets:
         print("1. Loading custom files")
-        json_ds = load_dataset("json", data_files=f"/mnt/osmanthus/aklharas/speechBSD/txt/{set_name}.json", cache_dir="./.cache")
+        json_ds = load_dataset("json", data_files=f"/mnt/osmanthus/aklharas/speechBSD/transformers/{set_name}.json")
         print("2. Creating custom uncached files")
         dataset = json_ds.map(normalize_inputs, fn_kwargs={"split_type": f"{set_name}", "processor": processor})
-        dataset.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav'])
+        dataset.remove_columns(['ja_sentence', 'en_speaker', 'ja_speaker', 'no', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav'])
         print("3. Saving to disk")
         dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/{set_name}_{LANG}.data")
 
@@ -183,5 +193,5 @@ def normalize_inputs(batch, split_type, processor):
 
 
 if __name__ == "__main__":
-    generate_datasets()
+    #generate_datasets()
     run(train=True, test=False, eval=False)
