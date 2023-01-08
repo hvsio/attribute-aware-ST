@@ -64,17 +64,12 @@ def run(train=False, test=False, eval=False):
         tokenizer: BartTokenizer
 
         def __call__(self, features: List) -> Dict[str, torch.Tensor]:
-            x = [f["translation"]["ja"] for f in features]
-            y = [f["translation"]["en"] for f in features]
-            inputs = tokenizer(x, return_tensors="pt", padding='max_length', truncation=True, max_length=32)
-            with tokenizer.as_target_tokenizer():
-                inputs['labels'] = \
-                    tokenizer(y, return_tensors="pt", padding='max_length', truncation=True, max_length=48)['input_ids']
-            return inputs
+            print(features[1])
+            return features
 
     data_collator = DataCollator(tokenizer)
 
-    train_ds = load_from_disk("{PATH}/mt/train_en.data/train")
+    train_ds = load_from_disk(f"{PATH}/mt/train_en.data/train")
     validation_ds = open(f"{PATH}/mt/validation_en.data/train")
     test_ds = open(f"{PATH}/mt/test_en.data/train")
     print(train_ds)
