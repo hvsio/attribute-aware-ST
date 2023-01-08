@@ -70,8 +70,8 @@ def run(train=False, test=False, eval=False):
     data_collator = DataCollator(tokenizer)
 
     train_ds = load_from_disk(f"{PATH}/mt/train_en.data/train")
-    validation_ds = open(f"{PATH}/mt/validation_en.data/train")
-    test_ds = open(f"{PATH}/mt/test_en.data/train")
+    validation_ds = load_from_disk(f"{PATH}/mt/validation_en.data/train")
+    test_ds = load_from_disk(f"{PATH}/mt/test_en.data/train")
     print(train_ds)
     def compute_metrics(pred):
         # predictions, label_ids, inputs (empty?)
