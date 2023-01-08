@@ -8,9 +8,12 @@ import re
 import wandb
 import torchaudio
 from evaluate import load
+import os
+os.environ["WANDB_PROJECT"] = "ASR"
 
 LANG = "en"
 MODEL_ID = 'jonatasgrosman/wav2vec2-large-xlsr-53-english'
+PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
 
 
 def get_model():
@@ -21,7 +24,6 @@ def get_model():
 
 def run(train=False, eval=False, test=False):
     wandb.init()
-    path = "/mnt/osmanthus/aklharas/speechBSD/transformers"
     model, processor = get_model()
     print(next(model.parameters()).device)
     cuda = torch.cuda.is_available()
@@ -31,9 +33,9 @@ def run(train=False, eval=False, test=False):
     print(next(model.parameters()).device)
     model.freeze_feature_encoder()
 
-    train_ds = load_from_disk(f"{path}/asr/train_en.data/train")
-    validation_ds = load_from_disk(f"{path}/asr/validation_en.data/train")
-    test_ds = load_from_disk(f"{path}/asr/test_en.data/train")
+    train_ds = load_from_disk(f"{PATH}/asr/train_en.data/train")
+    validation_ds = load_from_disk(f"{PATH}/asr/validation_en.data/train")
+    test_ds = load_from_disk(f"{PATH}/asr/test_en.data/train")
     train_ds = train_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])
     validation_ds = validation_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])
     test_ds = test_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])

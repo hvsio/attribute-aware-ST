@@ -18,6 +18,7 @@ from datetime import datetime
 import wandb
 from nltk.translate.bleu_score import sentence_bleu, corpus_bleu
 import os
+os.environ["WANDB_PROJECT"] = "attribute-aware-ST"
 logging.set_verbosity_info()
 logger = logging.get_logger("trainer")
 
