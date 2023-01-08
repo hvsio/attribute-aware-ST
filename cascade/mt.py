@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Dict
 
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk
 from transformers import MBartForConditionalGeneration, BartTokenizer, Seq2SeqTrainingArguments, Seq2SeqTrainer, \
     MBart50Tokenizer
 from nltk.translate.bleu_score import corpus_bleu
@@ -75,13 +75,10 @@ def run(train=False, test=False, eval=False):
 
     data_collator = DataCollator(tokenizer)
 
-    train_ds = open(f"{PATH}/mt/train_en.json")
-    train_ds = json.load(train_ds)
-    validation_ds = open(f"{PATH}/mt/validation_en.json")
-    validation_ds = json.load(validation_ds)
-    test_ds = open(f"{PATH}/mt/test_en.json")
-    test_ds = json.load(test_ds)
-
+    train_ds = load_from_disk("{PATH}/mt/train_en.data/train")
+    validation_ds = open(f"{PATH}/mt/validation_en.data/train")
+    test_ds = open(f"{PATH}/mt/test_en.data/train")
+    print(train_ds)
     def compute_metrics(pred):
         # predictions, label_ids, inputs (empty?)
         pred_ids = pred.predictions[0]
