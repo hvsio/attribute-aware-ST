@@ -43,6 +43,7 @@ def run(train=False, eval=False, test=False):
     def compute_metrics(pred):
         pred_logits = pred.predictions
         pred_ids = np.argmax(pred_logits, axis=-1)
+        print(pred_ids)
 
         pred.label_ids[pred.label_ids == -100] = processor.tokenizer.pad_token_id
 
@@ -196,4 +197,4 @@ def normalize_inputs(batch, split_type, processor):
 
 if __name__ == "__main__":
     #generate_datasets()
-    run(train=True, test=False, eval=False)
+    run(eval=True)
