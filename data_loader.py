@@ -34,6 +34,7 @@ class DataLoader:
             tag_id = tokenizer.convert_token_to_id(tag)
             gen_input = torch.cat([torch.tensor([[tag_id]]), gen_input], dim=1)
         print("AFTER--------------------------")
+        print(gen_input)
         return gen_input, predicted[0]
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
@@ -79,7 +80,7 @@ class DataLoader:
             #dataset = load_from_disk(f"{self.path}/transformers/{set_name}_{next(self.model.parameters()).device}_{lang}_{note}.data")
         else:
             logger.info("1. Loading custom files")
-            json_ds = load_dataset("json", data_files=f"{self.path}/jsons/{set_name}.json", cache_dir="./.cache")
+            json_ds = load_dataset("json", data_files=f"{self.path}/transformers/jsons/{set_name}.json", cache_dir="./.cache")
             logger.info("2. Creating custom uncached files")
             dataset = json_ds.map(self._prepare_dataset_custom,
                                   fn_kwargs={"selftype": selftype, "input_text_prompt": "", "split_type": f"{set_name}",
@@ -123,3 +124,6 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
     tokenizer.add_special_tokens(additional_tokens)
     tokenizer.save_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
 
+if __name__ == "__main__":
+    create_tokenizer(gender_tags=True)
+    generate()
