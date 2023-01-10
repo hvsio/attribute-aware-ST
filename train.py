@@ -76,8 +76,9 @@ def get_model(input_args, local='', checkpoint='', encdec=''):
         print(f"loading checkpoint {local}")
         config = SpeechMixConfig.from_json_file(f'/mnt/osmanthus/aklharas/checkpoints/{local}/{checkpoint}/config.json')
         checkpoint = torch.load(f'/mnt/osmanthus/aklharas/checkpoints/{local}/{checkpoint}/pytorch_model.bin')
-        #model = HFSpeechMixEEDmBart.from_pretrained("/mnt/osmanthus/aklharas/checkpoints/tunedBothAda32/checkpoint-3500", config=config)
-        model = HFSpeechMixEEDmBart(config, load_checkpoint=True, model_path=local, encdec_path=encdec)
+        #model = HFSpeechMixEEDmBart.from_pretrained("/mnt/osmanthus/aklharas/checkpoints/tunedBothAda32/checkpoint-7000", config=config)
+        #model = HFSpeechMixEEDmBart(config, load_checkpoint=True, model_path=local, encdec_path=encdec)
+        model = HFSpeechMixEEDmBart(config)
         model.load_state_dict(checkpoint, strict=False)
     else:
         model = HFSpeechMixEEDmBart(**input_args)
@@ -115,20 +116,20 @@ def main(arg=None):
         sacrebleu = evaluate.load("sacrebleu")
         bleu_score = sacrebleu.compute(predictions=pred_str, references=gold_sentences)
         nltk_bleu_score = corpus_bleu(gold_sentences, pred_str)
-        path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
-        if not os.path.exists(path):
-            os.makedirs(path)
+        #path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
+        #if not os.path.exists(path):
+        #    os.makedirs(path)
 
-        new_weights_files = str(datetime.now())
-        path = path+"/"+new_weights_files
-        pathE = path+"/encoder"
-        pathD = path+"/decoder"
-        os.makedirs(path)
-        os.makedirs(pathE)
-        os.makedirs(pathD)
+        #new_weights_files = str(datetime.now())
+        #path = path+"/"+new_weights_files
+        #pathE = path+"/encoder"
+        #pathD = path+"/decoder"
+        #os.makedirs(path)
+        #os.makedirs(pathE)
+        #os.makedirs(pathD)
 
-        model.encoder_model.save_pretrained(pathE)
-        model.decoder_model.save_pretrained(pathD)
+        #model.encoder_model.save_pretrained(pathE)
+        #model.decoder_model.save_pretrained(pathD)
 
         # for l, p in zip(label_str, pred_str):
         #     print(l, "======", p)
@@ -197,7 +198,7 @@ def main(arg=None):
         per_device_train_batch_size=int(input_args['batch']),
         per_device_eval_batch_size=int(input_args['batch']),
         gradient_accumulation_steps=int(input_args['grad_accum']),
-        eval_accumulation_steps=3,
+        eval_accumulation_steps=16,
         group_by_length=input_args["group_by_length"],
         evaluation_strategy="steps",
         load_best_model_at_end=True,
