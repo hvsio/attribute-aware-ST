@@ -1,5 +1,3 @@
-
-
 import copy
 
 import math
@@ -51,9 +49,9 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
                 "layernorm_embedding",
                 "attention",
             ],
-            load_checkpoint=False,
-            model_path="",
-            encdec_path="",
+            gender_tags=True,
+            en_tags=False,
+            ja_tags=False,
             **kwargs,
     ):
         if isinstance(speech_model_config, PretrainedConfig):
@@ -64,18 +62,37 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             config = SpeechMixConfig.from_configs(speech_model_config, nlp_model_config)
 
         super(HFSpeechMixEEDmBart, self).__init__(config)
-
         source_lang = "en_XX"
         target_lang = "ja_XX"
-        if load_checkpoint:
-            self.encoder_model = Wav2Vec2Model.from_pretrained(f"/mnt/osmanthus/aklharas/checkpoints/{model_path}/pretrained_weights/{encdec_path}/encoder")
-            self.decoder_model = MBartForConditionalGeneration.from_pretrained(f"/mnt/osmanthus/aklharas/checkpoints/{model_path}/pretrained_weights/{encdec_path}/decoder")
-        else:
-            self.encoder_model = Wav2Vec2Model.from_pretrained(speech_model_config)
-            self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
+        additional_tokens = []
+
+        if gender_tags:
+            print("Adding gender tags...")
+            additional_tokens = ['<F>', '<M>']
+
+        if en_tags:
+            print("Adding EN region...")
+            additional_tokens = additional_tokens + ['<FL>', '<GA>', '<IA>', '<IL>', '<CO>', '<OH>', '<KY>', '<OR>',
+                                                     '<MI>', '<VA>', '<MA>', '<CA>', '<SC>']
+        elif ja_tags:
+            print("Adding JA region...")
+            additional_tokens = additional_tokens + ['<沖縄>', '<岡山>', '<京都>', '<高知>', '<静岡>', '<栃木>',
+                                                     '<茨城>', '<愛知>',
+                                                     '<神奈川>', '<宮城>', '<秋田>', '<兵庫>', '<福岡>', '<千葉>',
+                                                     '<熊本>', '<富山>',
+                                                     '<岐阜>', '<群馬>', '<山梨>', '<香川>', '<不明>', '<滋賀>',
+                                                     '<東京>', '<佐賀>',
+                                                     '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
+
+        self.encoder_model = Wav2Vec2Model.from_pretrained(speech_model_config)
+        self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
 
         self.processor = Wav2Vec2Processor.from_pretrained(speech_model_config)
         self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
+        self.tokenizer.add_special_tokens(additional_tokens)
+        self.decoder_model.resize_token_embeddings(len(self.tokenizer))
+        assert self.decoder_model.vocab_size == len(self.tokenizer)
+
         self.weighted_sum = weighted_sum
         num_nlp_encoder_layers = 0
 
@@ -228,16 +245,17 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
         if inputs_embeds is not None:
             output = self.decoder_model(
                 inputs_embeds=inputs_embeds,
-                encoder_outputs=decoder_outputs if decoder_outputs else self.decoder_outputs, #sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention of the decoder.
-                attention_mask=attention_mask, #to avoid performing attention on padding token indices.
-                decoder_input_ids=decoder_input_ids, #Indices of decoder input sequence tokens in the vocabulary
+                encoder_outputs=decoder_outputs if decoder_outputs else self.decoder_outputs,
+                # sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention of the decoder.
+                attention_mask=attention_mask,  # to avoid performing attention on padding token indices.
+                decoder_input_ids=decoder_input_ids,  # Indices of decoder input sequence tokens in the vocabulary
                 labels=labels,
                 past_key_values=past_key_values,
                 use_cache=use_cache,
             )
         elif text_input_ids is not None:
             output = self.decoder_model(
-                input_ids=text_input_ids, #Indices of input sequence tokens in the vocabulary
+                input_ids=text_input_ids,  # Indices of input sequence tokens in the vocabulary
                 encoder_outputs=decoder_outputs if decoder_outputs else self.decoder_outputs,
                 decoder_input_ids=decoder_input_ids,
                 labels=labels,
@@ -249,10 +267,10 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 
     def forward(
             self,
-            input_values=None, #audio inputs
+            input_values=None,  # audio inputs
             decoder_text_prompt=None,
-            text_input_ids=None, #source transciption
-            decoder_input_ids=None, #target transcription
+            text_input_ids=None,  # source transciption
+            decoder_input_ids=None,  # target transcription
             labels=None,
             encoder_outputs=None,
             decoder_outputs=None,

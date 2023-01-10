@@ -10,8 +10,8 @@ for dataset in ds:
         f = f.read()
         j = json.loads(f)
         for i in j:
-            state_list.add(i['en_spk_state'])
-            pref_list.add(i['ja_spk_prefecture'])
+            state_list.add("<" + i['en_spk_state'] + ">")
+            pref_list.add("<" + i['ja_spk_prefecture'] + ">" )
 
 print(state_list)
 print(pref_list)
