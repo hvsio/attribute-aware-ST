@@ -30,8 +30,11 @@ class DataLoader:
         gen_input = tokenizer(input_sent, add_special_tokens=True, return_tensors="pt").input_ids
         predicted = tokenizer(target_sent, add_special_tokens=True, return_tensors="pt").input_ids
         tag = gender or region or both
+        print(gen_input)
         if tag:
             gen_input[0] = tag
+        gen_input = torch.tensor(gen_input)
+        print(gen_input)
         return gen_input, predicted[0]
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
@@ -83,7 +86,7 @@ class DataLoader:
             #dataset = load_from_disk(f"{self.path}/transformers/{set_name}_{next(self.model.parameters()).device}_{lang}_{note}.data")
         else:
             logger.info("1. Loading custom files")
-            json_ds = load_dataset("json", data_files=f"{self.path}/jsons/{set_name}.json", cache_dir="./.cache")
+            json_ds = load_dataset("json", data_files=f"{self.path}/transformers/jsons/{set_name}.json", cache_dir="./.cache")
             logger.info("2. Creating custom uncached files")
             dataset = json_ds.map(self._prepare_dataset_custom,
                                   fn_kwargs={"selftype": selftype, "input_text_prompt": "", "split_type": f"{set_name}",
@@ -114,7 +117,7 @@ model = HFSpeechMixEEDmBart(**input_args)
 device = torch.device("cuda")
 model.to(device)
 print(next(model.parameters()).device)
-dl = DataLoader(model, False, "/mnt/osmanthus/aklharas/speechBSD/transformers", with_tag_g=True, with_tag_r=False, with_tags=False)
+dl = DataLoader(model, False, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=True, with_tag_r=False, with_tags=False)
 sets = ['validation', 'test', 'train']
 for i in sets:
     dl.load_custom_datasets(i, "en", False, "en_gender")

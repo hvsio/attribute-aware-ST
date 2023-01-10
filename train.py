@@ -175,9 +175,9 @@ def main(arg=None):
     if 'custom_set_path' in input_args:
         print('load datasets')
         train_ds = load_from_disk(
-            f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/train_cuda:0_en_mbarttoklabel_nolower.data/train")
-        dev_ds = load_from_disk(f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/validation_cuda:0_en_mbarttoklabel_nolower.data/train")
-        test_ds = load_from_disk(f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/test_cuda:0_en_mbarttoklabel_nolower.data/train")
+            f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain/train_cuda:0_en_mbarttoklabel_nolower.data/train")
+        dev_ds = load_from_disk(f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain/validation_cuda:0_en_mbarttoklabel_nolower.data/train")
+        test_ds = load_from_disk(f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain/test_cuda:0_en_mbarttoklabel_nolower.data/train")
         print('datasets loaded')
         train_ds = train_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
         dev_ds = dev_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
