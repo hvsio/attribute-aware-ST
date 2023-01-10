@@ -121,7 +121,7 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
                                                  '<岐阜>', '<群馬>', '<山梨>', '<香川>', '<不明>', '<滋賀>',
                                                  '<東京>', '<佐賀>',
                                                  '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
-    tokenizer.add_special_tokens(additional_tokens)
+    tokenizer.add_special_tokens({'additional_special_tokens': additional_tokens})
     tokenizer.save_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
 
 if __name__ == "__main__":
