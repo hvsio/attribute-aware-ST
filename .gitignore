@@ -11,6 +11,8 @@ wandb/
 checkpoints/
 models/
 .cache/
+*.txt
+
 # Icon must end with two \r
 Icon
 
