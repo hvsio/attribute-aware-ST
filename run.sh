@@ -18,10 +18,6 @@ train.py \
 --batch 1 \
 --epoch 10 \
 --worker 10 \
---share_layer_ratio 0.5 \
---down_scale 2 \
---modelpath smallerWav \
 --local "tunedBothAda32" \
 --checkpoint "checkpoint-3500" \
---eval True \
---encdec "2023-01-07 16:41:58.647081"
+--eval True
