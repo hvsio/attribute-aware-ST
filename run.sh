@@ -6,7 +6,7 @@ python train.py --speech_model_config "facebook/wav2vec2-base" \
 --epoch 30 \
 --worker 10 \
 --share_layer_ratio 0.5 \
---down_scale 2 \
+--down_scale 8 \
 --lr 1e-5 \
 --warmup_steps 500 \
 --modelpath smallerWav \

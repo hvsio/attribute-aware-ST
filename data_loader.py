@@ -4,7 +4,7 @@ import random
 import torch
 import torchaudio
 from datasets import load_dataset
-from transformers import logging, Wav2Vec2Processor
+from transformers import logging, Wav2Vec2Processor, Wav2Vec2FeatureExtractor, Wav2Vec2Tokenizer
 
 from hf_model import HFSpeechMixEEDmBart
 
@@ -14,7 +14,10 @@ logger = logging.get_logger("transformers")
 class DataLoader:
 
     def __init__(self, model, cache, path, with_tag_g: False, with_tag_r: False, with_tags: False):
-        self.processor = Wav2Vec2Processor("jonatasgrosman/wav2vec2-large-xlsr-53-english")
+        self.wav = "facebook/wav2vec2-large-960h-lv60-self"
+        self.wavTokenizer = Wav2Vec2Tokenizer.from_pretrained(self.wav)
+        self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.wav)
+        self.processor = Wav2Vec2Processor(self.feature_extractor, self.wavTokenizer)
         self.model = model
         self.cache = cache
         self.path = path
