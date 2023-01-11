@@ -28,13 +28,9 @@ class DataLoader:
     def _create_self_decoder_input(self, tokenizer, input_sent, target_sent, tag=False):
         gen_input = tokenizer(input_sent, add_special_tokens=True, return_tensors="pt").input_ids
         predicted = tokenizer(target_sent, add_special_tokens=True, return_tensors="pt").input_ids
-        print("BEFORE--------------------------")
-        print(gen_input)
         if tag:
-            tag_id = tokenizer.convert_token_to_id(tag)
+            tag_id = tokenizer.convert_tokens_to_ids(tag)
             gen_input = torch.cat([torch.tensor([[tag_id]]), gen_input], dim=1)
-        print("AFTER--------------------------")
-        print(gen_input)
         return gen_input, predicted[0]
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
@@ -63,7 +59,6 @@ class DataLoader:
                                                                         target_sent,
                                                                         tag=tag,
                                                                         )
-        print(decoder_input, decoder_target)
         batch["input_text_prompt"] = input_text_prompt
         batch["text_input_ids"] = decoder_input
         batch["labels"] = decoder_target
@@ -86,14 +81,14 @@ class DataLoader:
                                   fn_kwargs={"selftype": selftype, "input_text_prompt": "", "split_type": f"{set_name}",
                                              "lang": lang})
             logger.info("3. Saving to disk")
-            dataset.save_to_disk(f"{self.path}/transformers/{note}/{set_name}_{next(self.model.parameters()).device}_{lang}_{note}.data")
+            dataset.save_to_disk(f"{self.path}/transformers/{note}/{set_name}_{lang}_{note}.data")
         return dataset
 
 
 def generate():
     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
     device = torch.device("cuda")
-    dl = DataLoader(tokenizer, False, "/mnt/osmanthus/aklharas/speechBSD/transformers", with_tag_g=True,
+    dl = DataLoader(tokenizer, False, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=True,
                     with_tag_r=False, with_tags=False)
     sets = ['validation', 'test', 'train']
     for i in sets:
@@ -122,7 +117,8 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
                                                  '<東京>', '<佐賀>',
                                                  '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
     tokenizer.add_special_tokens({'additional_special_tokens': additional_tokens})
-    tokenizer.save_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
+    print(len(tokenizer))
+    tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/gender")
 
 if __name__ == "__main__":
     create_tokenizer(gender_tags=True)
