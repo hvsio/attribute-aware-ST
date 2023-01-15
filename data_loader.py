@@ -1,25 +1,19 @@
-import os
-import random
-
 import torch
 import torchaudio
 from datasets import load_dataset
 from transformers import logging, Wav2Vec2Processor, Wav2Vec2FeatureExtractor, Wav2Vec2Tokenizer, MBart50Tokenizer
-
-from hf_model import HFSpeechMixEEDmBart
 
 logging.set_verbosity_info()
 logger = logging.get_logger("transformers")
 
 class DataLoader:
 
-    def __init__(self, tokenizer, cache, path, with_tag_g: False, with_tag_r: False, with_tags: False):
+    def __init__(self, tokenizer, path, with_tag_g: False, with_tag_r: False, with_tags: False):
         self.wav = "facebook/wav2vec2-large-960h-lv60-self"
         self.wavTokenizer = Wav2Vec2Tokenizer.from_pretrained(self.wav)
         self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.wav)
         self.processor = Wav2Vec2Processor(self.feature_extractor, self.wavTokenizer)
         self.tokenizer = tokenizer
-        self.cache = cache
         self.path = path
         self.with_tag_g = with_tag_g
         self.with_tag_r = with_tag_r
@@ -32,7 +26,7 @@ class DataLoader:
         print(gen_input)
         if tag:
             tag_id = tokenizer.convert_token_to_id(tag)
-            gen_input = torch.cat([torch.tensor([[tag_id]]), gen_input], dim=1)
+            gen_input = torch.cat([torch.tensor([[tag_id]]), gen_input], dim=1)  # fix that, insert as second
         print("AFTER--------------------------")
         print(gen_input)
         return gen_input, predicted[0]
@@ -70,35 +64,31 @@ class DataLoader:
 
         return batch
 
-
-    def load_custom_datasets(self, set_name, lang, cache, note):
+    def load_custom_datasets(self, set_name, lang, note):
         selftype = False
         dataset = None
 
-        if cache and os.path.isdir(self.path):
-            logger.info("Getting cached files")
-            #dataset = load_from_disk(f"{self.path}/transformers/{set_name}_{next(self.model.parameters()).device}_{lang}_{note}.data")
-        else:
-            logger.info("1. Loading custom files")
-            json_ds = load_dataset("json", data_files=f"{self.path}/transformers/jsons/{set_name}.json", cache_dir="./.cache")
-            logger.info("2. Creating custom uncached files")
-            dataset = json_ds.map(self._prepare_dataset_custom,
-                                  fn_kwargs={"selftype": selftype, "input_text_prompt": "", "split_type": f"{set_name}",
-                                             "lang": lang})
-            logger.info("3. Saving to disk")
-            dataset.save_to_disk(f"{self.path}/transformers/{note}/{set_name}_{next(self.model.parameters()).device}_{lang}_{note}.data")
+        logger.info("1. Loading custom files")
+        json_ds = load_dataset("json", data_files=f"{self.path}/transformers/jsons/{set_name}.json",
+                               cache_dir="./.cache")
+        logger.info("2. Creating custom uncached files")
+        dataset = json_ds.map(self._prepare_dataset_custom,
+                              fn_kwargs={"selftype": selftype, "input_text_prompt": "", "split_type": f"{set_name}",
+                                         "lang": lang})
+        logger.info("3. Saving to disk")
+        dataset.save_to_disk(
+            f"{self.path}/transformers/{note}/{set_name}_{next(self.model.parameters()).device}_{lang}_{note}.data")
         return dataset
 
 
 def generate():
     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
     device = torch.device("cuda")
-    dl = DataLoader(tokenizer, False, "/mnt/osmanthus/aklharas/speechBSD/transformers", with_tag_g=True,
+    dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD/transformers", with_tag_g=True,
                     with_tag_r=False, with_tags=False)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "en", False, "en_gender")
-
+        dl.load_custom_datasets(i, "en", "en_gender")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):

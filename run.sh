@@ -18,6 +18,6 @@ train.py \
 --batch 1 \
 --epoch 10 \
 --worker 10 \
---local "tunedBothAda32" \
---checkpoint "checkpoint-3500" \
+--local "tunedBoth8scale" \
+--checkpoint "checkpoint-2100" \
 --eval True
