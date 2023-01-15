@@ -20,10 +20,11 @@ def handle_decoder_input_none(decoder_config, batch=1, device=torch.device("cuda
 
 def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int,
                        decoder_start_token_id: int):
+    print("Shifting right")
     shifted_input_ids = input_ids.new_zeros(input_ids.shape)
     shifted_input_ids[:, 1:] = input_ids[:, :-1].clone()
     shifted_input_ids[:, 0] = decoder_start_token_id
-
+    print(shifted_input_ids)
     assert pad_token_id is not None, "self.model.config.pad_token_id has to be defined."
     # replace possible -100 values in labels by `pad_token_id`
     shifted_input_ids.masked_fill_(shifted_input_ids == -100, pad_token_id)
@@ -49,7 +50,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
                 "layernorm_embedding",
                 "attention",
             ],
-            gender_tags=True,
+            gender_tags=False,
             en_tags=False,
             ja_tags=False,
             **kwargs,
@@ -89,10 +90,12 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 
         self.processor = Wav2Vec2Processor.from_pretrained(speech_model_config)
         self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
-        self.tokenizer.add_special_tokens({'additional_special_tokens': additional_tokens})
-        self.decoder_model.resize_token_embeddings(len(self.tokenizer))
-        assert self.decoder_model.vocab_size == len(self.tokenizer)
-
+        if additional_tokens:
+         self.tokenizer.add_special_tokens({'additional_special_tokens': additional_tokens})
+         self.decoder_model.resize_token_embeddings(len(self.tokenizer))
+         assert self.decoder_model.vocab_size == len(self.tokenizer)
+        else:
+         print("No tokens added")
         self.weighted_sum = weighted_sum
         num_nlp_encoder_layers = 0
 

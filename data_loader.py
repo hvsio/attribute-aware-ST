@@ -1,5 +1,6 @@
 import os
 import random
+import re
 
 import torch
 import torchaudio
@@ -8,6 +9,7 @@ from transformers import logging, Wav2Vec2Processor, Wav2Vec2FeatureExtractor, W
 
 from hf_model import HFSpeechMixEEDmBart
 
+chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
 logging.set_verbosity_info()
 logger = logging.get_logger("transformers")
 
@@ -26,12 +28,14 @@ class DataLoader:
         self.with_tags = with_tags
 
     def _create_self_decoder_input(self, tokenizer, input_sent, target_sent, tag=False):
-        gen_input = tokenizer(input_sent, add_special_tokens=True, return_tensors="pt").input_ids
-        predicted = tokenizer(target_sent, add_special_tokens=True, return_tensors="pt").input_ids
+        inputs = input_sent
+        gen_input = tokenizer(input_sent, text_target=target_sent, add_special_tokens=True, return_tensors="pt")
+        inputs = gen_input.input_ids
+        labels = gen_input.labels
         if tag:
-            tag_id = tokenizer.convert_tokens_to_ids(tag)
-            gen_input = torch.cat([torch.tensor([[tag_id]]), gen_input], dim=1)
-        return gen_input, predicted[0]
+            tag_id = tokenizer.convert_token_to_id(tag)
+            inputs = torch.cat([torch.tensor([[tag_id]]), inputs], dim=1)
+        return inputs, labels[0]
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
         region = "prefecture" if lang == "ja" else "state"
@@ -81,7 +85,7 @@ class DataLoader:
                                   fn_kwargs={"selftype": selftype, "input_text_prompt": "", "split_type": f"{set_name}",
                                              "lang": lang})
             logger.info("3. Saving to disk")
-            dataset.save_to_disk(f"{self.path}/transformers/{note}/{set_name}_{lang}_{note}.data")
+            dataset.save_to_disk(f"{self.path}/transformers/{note}/{set_name}_{lang}.data")
         return dataset
 
 
@@ -92,13 +96,16 @@ def generate():
                     with_tag_r=False, with_tags=False)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "en", False, "en_gender")
+        dl.load_custom_datasets(i, "en", False, "en_plain_mbartdoc_withchars")
 
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
     MBART = "facebook/mbart-large-50-many-to-many-mmt"
     tokenizer = MBart50Tokenizer.from_pretrained(MBART)
+    tokenizer.src_lang = "en_XX"
+    tokenizer.tgt_lang = "ja_XX"
+    additional_tokens = []
     if gender_tags:
         print("Adding gender tags...")
         additional_tokens = ['<F>', '<M>']
@@ -116,10 +123,11 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
                                                  '<岐阜>', '<群馬>', '<山梨>', '<香川>', '<不明>', '<滋賀>',
                                                  '<東京>', '<佐賀>',
                                                  '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
-    tokenizer.add_special_tokens({'additional_special_tokens': additional_tokens})
-    print(len(tokenizer))
-    tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/gender")
+    if additional_tokens:
+     tokenizer.add_special_tokens({'additional_special_tokens': additional_tokens})
+    #tokenizer.save_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
+    return tokenizer
 
 if __name__ == "__main__":
-    create_tokenizer(gender_tags=True)
-    generate()
+    tokenizer = create_tokenizer()
+    generate(tokenizer)
