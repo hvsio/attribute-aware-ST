@@ -1,7 +1,6 @@
 import sys
 from dataclasses import dataclass
 from typing import Dict, List, Union, Optional
-import evaluate
 import asrp
 import torch
 from datasets import load_from_disk
@@ -16,7 +15,8 @@ from utils.config_parser import parse_args
 from hf_model import HFSpeechMixEEDmBart, SpeechMixConfig
 from datetime import datetime
 import wandb
-from nltk.translate.bleu_score import sentence_bleu, corpus_bleu
+from nltk.translate.bleu_score import corpus_bleu
+from sacrebleu.metrics import BLEU
 import os
 os.environ["WANDB_PROJECT"] = "attribute-aware-ST"
 logging.set_verbosity_info()
@@ -66,6 +66,7 @@ class DataCollatorWithPadding:
             labels_batch = labels_batch[:, 1:]
 
         batch['labels'] = labels_batch
+        print(batch['labels'])
 
         torch.cuda.empty_cache()
         return batch
@@ -110,12 +111,13 @@ def main(arg=None):
         label_ids = pred.label_ids
         label_ids = [i[i != -100] for i in label_ids]
         label_str = model.tokenizer.batch_decode(label_ids, skip_special_tokens=True, group_tokens=False)
-
+        bleu = BLEU(tokenize="ja-mecab")
+        #sacrebleu = evaluate.load("sacrebleu")
+        #bleu_score = sacrebleu.compute(predictions=pred_str, references=gold_sentences, tokenize='ja-mecab')
         gold_sentences = [[l] for l in label_str]
-
-        sacrebleu = evaluate.load("sacrebleu")
-        bleu_score = sacrebleu.compute(predictions=pred_str, references=gold_sentences)
+        result = bleu.corpus_score(pred_str, gold_sentences)
         nltk_bleu_score = corpus_bleu(gold_sentences, pred_str)
+        print(nltk_bleu_score)
         #path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
         #if not os.path.exists(path):
         #    os.makedirs(path)
@@ -138,9 +140,9 @@ def main(arg=None):
         print("PRED vs GOLD")
         for i in range(20):
             print(f"{pred_str[i]}   ---   {label_str[i]}")
-        print({"cer": cer, "wer": wer, "bleu": nltk_bleu_score})
-        wandb.log({ "cer": cer, "wer": wer, "bleu": nltk_bleu_score})
-        return {"cer": cer, "wer": wer, "bleu": nltk_bleu_score}
+        print({"cer": cer, "wer": wer, "sacrebleu": result.score})
+        wandb.log({ "cer": cer, "wer": wer, "sacrebleu": result.score})
+        return {"cer": cer, "wer": wer, "sacrebleu": result.score}
 
     class FreezingCallback(TrainerCallback):
         def __init__(self, trainer, freeze_model, freeze_epoch=3):
@@ -175,9 +177,9 @@ def main(arg=None):
     if 'custom_set_path' in input_args:
         print('load datasets')
         train_ds = load_from_disk(
-            f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain/train_cuda:0_en_mbarttoklabel_nolower.data/train")
-        dev_ds = load_from_disk(f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain/validation_cuda:0_en_mbarttoklabel_nolower.data/train")
-        test_ds = load_from_disk(f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain/test_cuda:0_en_mbarttoklabel_nolower.data/train")
+            f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain_mbartdoc/train_en_en_plain_mbartdoc.data/train")
+        dev_ds = load_from_disk(f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain_mbartdoc/validation_en_en_plain_mbartdoc.data/train")
+        test_ds = load_from_disk(f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain_mbartdoc/test_en_en_plain_mbartdoc.data/train")
         print('datasets loaded')
         train_ds = train_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
         dev_ds = dev_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
@@ -200,9 +202,10 @@ def main(arg=None):
         gradient_accumulation_steps=int(input_args['grad_accum']),
         eval_accumulation_steps=16,
         group_by_length=input_args["group_by_length"],
-        evaluation_strategy="steps",
+	    evaluation_strategy="steps",
         load_best_model_at_end=True,
-        fp16=input_args.get('fp16', True),
+        #fp16=input_args.get('fp16', True),
+        bf16=True,
         num_train_epochs=input_args.get('epoch', 10),
         save_steps=input_args.get('eval_step', 700),
         eval_steps=input_args.get('eval_step', 3),
