@@ -25,8 +25,8 @@ class DataLoader:
         inputs = gen_input.input_ids
         labels = gen_input.labels
         if tag:
-            tag_id = tokenizer.convert_token_to_id(tag)
-            inputs = torch.cat([torch.tensor([[tag_id]]), inputs], dim=1)
+            tag_id = tokenizer.convert_tokens_to_ids([tag])
+            inputs = torch.cat([torch.tensor([[tag_id]]), inputs], dim=1)  #fix that
         return inputs, labels[0]
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
@@ -53,9 +53,8 @@ class DataLoader:
         decoder_input, decoder_target = self._create_self_decoder_input(self.tokenizer,
                                                                         input_text_prompt + source_sent,
                                                                         target_sent,
-                                                                        tag=tag,
+                                                                        #tag=tag,
                                                                         )
-        print(decoder_input, decoder_target)
         batch["input_text_prompt"] = input_text_prompt
         batch["text_input_ids"] = decoder_input
         batch["labels"] = decoder_target
@@ -75,18 +74,18 @@ class DataLoader:
                                          "lang": lang})
         logger.info("3. Saving to disk")
         dataset.save_to_disk(
-            f"{self.path}/transformers/{note}/{set_name}_{next(self.model.parameters()).device}_{lang}_{note}.data")
+            f"{self.path}/transformers/{note}/{set_name}.data")
         return dataset
 
 
-def generate():
-    tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
+def generate(tokenizer):
+    #tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
     device = torch.device("cuda")
-    dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD/transformers", with_tag_g=True,
+    dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=True,
                     with_tag_r=False, with_tags=False)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "en", "en_gender")
+        dl.load_custom_datasets(i, "en", "en_plain_basic")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):

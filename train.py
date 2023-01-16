@@ -115,7 +115,7 @@ def main(arg=None):
         #sacrebleu = evaluate.load("sacrebleu")
         #bleu_score = sacrebleu.compute(predictions=pred_str, references=gold_sentences, tokenize='ja-mecab')
         gold_sentences = [[l] for l in label_str]
-        result = bleu.corpus_score(pred_str, gold_sentences)
+        result = bleu.corpus_score(pred_str, label_str)
         nltk_bleu_score = corpus_bleu(gold_sentences, pred_str)
         print(nltk_bleu_score)
         #path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
@@ -177,9 +177,9 @@ def main(arg=None):
     if 'custom_set_path' in input_args:
         print('load datasets')
         train_ds = load_from_disk(
-            f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain_mbartdoc/train_en_en_plain_mbartdoc.data/train")
-        dev_ds = load_from_disk(f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain_mbartdoc/validation_en_en_plain_mbartdoc.data/train")
-        test_ds = load_from_disk(f"/mnt/osmanthus/aklharas/{input_args['custom_set_path']}/transformers/en_plain_mbartdoc/test_en_en_plain_mbartdoc.data/train")
+            f"/mnt/osmanthus/aklharas/speechBSD/transformers/{input_args['custom_set_path']}/train.data/train")
+        dev_ds = load_from_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/{input_args['custom_set_path']}/validation.data/train")
+        test_ds = load_from_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/{input_args['custom_set_path']}/test.data/train")
         print('datasets loaded')
         train_ds = train_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
         dev_ds = dev_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
@@ -201,8 +201,8 @@ def main(arg=None):
         per_device_eval_batch_size=int(input_args['batch']),
         gradient_accumulation_steps=int(input_args['grad_accum']),
         eval_accumulation_steps=16,
-        group_by_length=input_args["group_by_length"],
-	    evaluation_strategy="steps",
+#        group_by_length=input_args["group_by_length"],
+	evaluation_strategy="steps",
         load_best_model_at_end=True,
         #fp16=input_args.get('fp16', True),
         bf16=True,

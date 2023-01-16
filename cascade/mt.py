@@ -21,11 +21,11 @@ nltk.download("punkt")
 LANG = "en"
 MODEL_ID = 'facebook/mbart-large-cc25'
 PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
-LOCAL = "/mnt/osmanthus/aklharas/checkpoints/mt2/checkpoint-700"
+LOCAL = "/mnt/osmanthus/aklharas/checkpoints/mt3cc/checkpoint-9100"
 torch.cuda.empty_cache()
 
 def get_model():
-    model = MBartForConditionalGeneration.from_pretrained(MODEL_ID)
+    model = MBartForConditionalGeneration.from_pretrained(LOCAL)
     tokenizer = MBartTokenizer.from_pretrained(MODEL_ID, tgt_lang="ja_XX", src_lang="en_XX")
     return model, tokenizer
 
@@ -41,7 +41,7 @@ def generate_datasets():
         dataset = json_ds.map(preprocess_function, fn_kwargs={"tokenizer": tokenizer})
         print(dataset['train'][0])
         print("3. Saving to disk")
-        dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/mt3/{set_name}_{LANG}.data")
+        dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/mt4-50base/{set_name}_{LANG}.data")
 
 source_lang = "en"
 target_lang = "ja"
@@ -70,10 +70,10 @@ def run(train=False, test=False, eval=False):
     #                                           num_training_steps=37500,
     #                                           num_warmup_steps=500)
 
-    train_ds = load_from_disk(f"{PATH}/mt2/train_en.data/train")
-    validation_ds = load_from_disk(f"{PATH}/mt2/validation_en.data/train")
+    train_ds = load_from_disk(f"{PATH}/mt3/train_en.data/train")
+    validation_ds = load_from_disk(f"{PATH}/mt3/validation_en.data/train")
 #    validation_ds = validation_ds.select(range(20))
-    test_ds = load_from_disk(f"{PATH}/mt2/test_en.data/train")
+    test_ds = load_from_disk(f"{PATH}/mt3/test_en.data/train")
 
     def compute_metrics(pred):
      preds, labels = pred
@@ -85,21 +85,25 @@ def run(train=False, test=False, eval=False):
 
      decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
      decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
-     decoded_labels = [[l] for l in decoded_labels]
-     print(decoded_labels)
-     print(decoded_preds)
+     gold = [[l] for l in decoded_labels]
      bleu = BLEU(tokenize="ja-mecab")
-     result = metric.compute(predictions=decoded_preds, references=decoded_labels)
-     sacrebleu_score = bleu.corpus_score(decoded_preds, decoded_labels)
+ 
+     result = metric.compute(predictions=decoded_preds, references=gold)
+     sacrebleu_score = bleu.corpus_score(decoded_preds, gold)
      print(result)
      print(sacrebleu_score)
+     with open('hyp.txt', "w") as f1:
+      f1.write("\n".join(decoded_preds))
+     with open("ref.txt", "w") as f2:
+      f2.write("\n".join(decoded_labels))
      for i in range(20):
        print(f"{decoded_preds[i]} ---- {decoded_labels[i]}")
+     print(bleu.get_signature())
      wandb.log({"bleu": sacrebleu_score.score})
      return result
 
     train_args = Seq2SeqTrainingArguments(
-        output_dir="/mnt/osmanthus/aklharas/checkpoints/mt3cc",
+        output_dir="/mnt/osmanthus/aklharas/checkpoints/mt4-50base",
         evaluation_strategy="steps",
         predict_with_generate=True,
         per_device_train_batch_size=4,
@@ -134,8 +138,8 @@ def run(train=False, test=False, eval=False):
     if train:
         trainer.train()
         #trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/mt/checkpoint-2000")
-        tokenizer.save_pretrained('/mnt/osmanthus/aklharas/models/mt2newdataset')
-        trainer.save_model('/mnt/osmanthus/aklharas/models/mt2newdataset')
+        tokenizer.save_pretrained('/mnt/osmanthus/aklharas/models/mt4-50base')
+        trainer.save_model('/mnt/osmanthus/aklharas/models/mt4-50base')
     elif eval:
        trainer.evaluate()
     elif test:
@@ -143,5 +147,5 @@ def run(train=False, test=False, eval=False):
 
 if __name__ == "__main__":
     #generate_datasets()
-    run(eval=True)
+    run(test=True)
 

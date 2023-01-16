@@ -24,7 +24,7 @@ def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int,
     shifted_input_ids = input_ids.new_zeros(input_ids.shape)
     shifted_input_ids[:, 1:] = input_ids[:, :-1].clone()
     shifted_input_ids[:, 0] = decoder_start_token_id
-    print(shifted_input_ids)
+    #print(shifted_input_ids)
     assert pad_token_id is not None, "self.model.config.pad_token_id has to be defined."
     # replace possible -100 values in labels by `pad_token_id`
     shifted_input_ids.masked_fill_(shifted_input_ids == -100, pad_token_id)
@@ -198,6 +198,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             module.bias.data.zero_()
 
     def prepare_decoder_input_ids_from_labels(self, labels: torch.Tensor):
+        print("Called prepare decoder input id from labels")
         return shift_tokens_right(labels, self.config.pad_token_id,
                                   self.config.decoder_start_token_id)
 
@@ -215,13 +216,15 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
         decoder_attention_mask = decoder_inputs["attention_mask"] if "attention_mask" in decoder_inputs else None
         # "decoder_attention_mask": decoder_attention_mask,
         print("preapring called")
+        print(inputs_ids)
+        print(decoder_inputs)
         input_dict = {
             "encoder_outputs": encoder_outputs,
             "attention_mask": attention_mask,
             "use_cache": use_cache,
             "past_key_values": past,
             "decoder_input_ids": input_ids,
-            "decoder_attention_mask": decoder_attention_mask
+           # "decoder_attention_mask": decoder_attention_mask
         }
         input_dict.update(kwargs)
         return input_dict
