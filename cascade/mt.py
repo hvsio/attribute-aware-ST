@@ -24,8 +24,9 @@ PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
 LOCAL = "/mnt/osmanthus/aklharas/checkpoints/mt3cc/checkpoint-9100"
 torch.cuda.empty_cache()
 
-def get_model():
-    model = MBartForConditionalGeneration.from_pretrained(LOCAL)
+def get_model(local=False):
+    id = LOCAL if local else MODEL_ID
+    model = MBartForConditionalGeneration.from_pretrained(id)
     tokenizer = MBartTokenizer.from_pretrained(MODEL_ID, tgt_lang="ja_XX", src_lang="en_XX")
     return model, tokenizer
 
@@ -145,7 +146,20 @@ def run(train=False, test=False, eval=False):
     elif test:
        trainer.predict(test_ds)
 
+def cascade_inference(local=False):
+    model, tok = get_model()
+    with open("asr.txt", "r") as f:
+        samples = f.readlines()
+    tokenized = tok(samples, return_tensors="pt", add_special_tokens=True)
+    res = model.generate(**tokenized, decoder_start_token_id=tok.lang_code_to_id["ja_XX"])
+    translated = tok.batch_decode(res, skip_special_tokens=True)
+    with open('hyp.txt', "w") as f1:
+        f1.write("\n".join(translated))
+
+
+
 if __name__ == "__main__":
     #generate_datasets()
     run(test=True)
+    #cascade_inference(True)
 
