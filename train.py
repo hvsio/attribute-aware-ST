@@ -79,8 +79,8 @@ def get_model(input_args, local='', checkpoint='', encdec=''):
         print(f"loading checkpoint {local}")
         config = SpeechMixConfig.from_json_file(f'/mnt/osmanthus/aklharas/checkpoints/{local}/{checkpoint}/config.json')
         checkpoint = torch.load(f'/mnt/osmanthus/aklharas/checkpoints/{local}/{checkpoint}/pytorch_model.bin')
-        #model = HFSpeechMixEEDmBart.from_pretrained("/mnt/osmanthus/aklharas/checkpoints/tunedBothAda32/checkpoint-7000", config=config)
-        #model = HFSpeechMixEEDmBart(config, load_checkpoint=True, model_path=local, encdec_path=encdec)
+        # model = HFSpeechMixEEDmBart.from_pretrained("/mnt/osmanthus/aklharas/checkpoints/tunedBothAda32/checkpoint-7000", config=config)
+        # model = HFSpeechMixEEDmBart(config, load_checkpoint=True, model_path=local, encdec_path=encdec)
         model = HFSpeechMixEEDmBart(config)
         model.load_state_dict(checkpoint, strict=False)
     else:
@@ -94,7 +94,8 @@ def main(arg=None):
     input_args, other_arg = parse_args(sys.argv[1:]) if arg is None else parse_args(arg)
     print("input_args", input_args)
 
-    model, model_type = get_model(input_args, input_args.get('local'), input_args.get('checkpoint'), input_args.get('encdec'))
+    model, model_type = get_model(input_args, input_args.get('local'), input_args.get('checkpoint'),
+                                  input_args.get('encdec'))
     selftype = 'SpeechMixSelf' in model_type
     if __name__ == '__main__':
         cuda = torch.cuda.is_available()
@@ -113,12 +114,14 @@ def main(arg=None):
         label_ids = pred.label_ids
         label_ids = [i[i != -100] for i in label_ids]
         label_str = model.tokenizer.batch_decode(label_ids, skip_special_tokens=True, group_tokens=False)
+
         gold_sentences = [[l] for l in label_str]
         bleu = BLEU(tokenize="ja-mecab")
         sacrebleu = evaluate.load("sacrebleu")
         bleu_score = sacrebleu.compute(predictions=pred_str, references=gold_sentences, tokenize='ja-mecab')
         result = bleu.corpus_score(pred_str, label_str)
         nltk_bleu_score = corpus_bleu(gold_sentences, pred_str)
+
         print(nltk_bleu_score)
         print(bleu_score)
         with open('hyp.txt', "w") as f1:
@@ -126,20 +129,20 @@ def main(arg=None):
         with open("ref.txt", "w") as f2:
          f2.write("\n".join(label_str))
 
-        #path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
-        #if not os.path.exists(path):
+        # path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
+        # if not os.path.exists(path):
         #    os.makedirs(path)
 
-        #new_weights_files = str(datetime.now())
-        #path = path+"/"+new_weights_files
-        #pathE = path+"/encoder"
-        #pathD = path+"/decoder"
-        #os.makedirs(path)
-        #os.makedirs(pathE)
-        #os.makedirs(pathD)
+        # new_weights_files = str(datetime.now())
+        # path = path+"/"+new_weights_files
+        # pathE = path+"/encoder"
+        # pathD = path+"/decoder"
+        # os.makedirs(path)
+        # os.makedirs(pathE)
+        # os.makedirs(pathD)
 
-        #model.encoder_model.save_pretrained(pathE)
-        #model.decoder_model.save_pretrained(pathD)
+        # model.encoder_model.save_pretrained(pathE)
+        # model.decoder_model.save_pretrained(pathD)
 
         # for l, p in zip(label_str, pred_str):
         #     print(l, "======", p)
@@ -149,7 +152,7 @@ def main(arg=None):
         for i in range(20):
             print(f"{pred_str[i]}   ---   {label_str[i]}")
         print({"cer": cer, "wer": wer, "sacrebleu": result.score})
-        wandb.log({ "cer": cer, "wer": wer, "sacrebleu": result.score})
+        wandb.log({"cer": cer, "wer": wer, "sacrebleu": result.score})
         return {"cer": cer, "wer": wer, "sacrebleu": result.score}
 
     class FreezingCallback(TrainerCallback):
@@ -186,19 +189,27 @@ def main(arg=None):
         print('load datasets')
         train_ds = load_from_disk(
             f"/mnt/osmanthus/aklharas/speechBSD/transformers/{input_args['custom_set_path']}/train.data/train")
-        dev_ds = load_from_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/{input_args['custom_set_path']}/validation.data/train")
-        test_ds = load_from_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/{input_args['custom_set_path']}/test.data/train")
+        dev_ds = load_from_disk(
+            f"/mnt/osmanthus/aklharas/speechBSD/transformers/{input_args['custom_set_path']}/validation.data/train")
+        test_ds = load_from_disk(
+            f"/mnt/osmanthus/aklharas/speechBSD/transformers/{input_args['custom_set_path']}/test.data/train")
         print('datasets loaded')
-        train_ds = train_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
-        dev_ds = dev_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav', 'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
-        test_ds = test_ds.remove_columns(['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav','ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
+        train_ds = train_ds.remove_columns(
+            ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
+             'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
+        dev_ds = dev_ds.remove_columns(
+            ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
+             'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
+        test_ds = test_ds.remove_columns(
+            ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
+             'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
 
-    steps = (20000/(2*int(input_args['batch']))*input_args.get('epoch', 10))
+    steps = (20000 / (2 * int(input_args['batch'])) * input_args.get('epoch', 10))
     print(steps)
     optimizer = Adafactor(model.parameters(), scale_parameter=False, relative_step=False, warmup_init=False, lr=1e-5)
     lr_scheduler = get_linear_schedule_with_warmup(optimizer,
-                                               num_training_steps=steps,
-                                               num_warmup_steps=500)
+                                                   num_training_steps=steps,
+                                                   num_warmup_steps=500)
     data_collator = DataCollatorWithPadding(tokenizer=model.tokenizer, padding=True, selftype=selftype)
     temp_id = now = datetime.now()
 
@@ -209,8 +220,8 @@ def main(arg=None):
         per_device_eval_batch_size=int(input_args['batch']),
         gradient_accumulation_steps=int(input_args['grad_accum']),
         eval_accumulation_steps=16,
-#        group_by_length=input_args["group_by_length"],
-	evaluation_strategy="steps",
+        #group_by_length=input_args["group_by_length"],
+        evaluation_strategy="steps",
         load_best_model_at_end=True,
         fp16=input_args.get('fp16', True),
         #bf16=True,

@@ -216,8 +216,6 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
         #decoder_attention_mask = decoder_inputs["attention_mask"] if "attention_mask" in decoder_inputs else None
         # "decoder_attention_mask": decoder_attention_mask,
         print("preapring called")
-        print(input_ids)
-        print(decoder_inputs)
         input_dict = {
             "encoder_outputs": encoder_outputs,
             "attention_mask": attention_mask,
