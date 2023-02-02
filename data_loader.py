@@ -20,13 +20,14 @@ class DataLoader:
         self.with_tags = with_tags
 
     def _create_self_decoder_input(self, tokenizer, input_sent, target_sent, tag=False):
-        inputs = input_sent
-        gen_input = tokenizer(input_sent, text_target=target_sent, add_special_tokens=True, return_tensors="pt")
+        gen_input = tokenizer(input_sent, text_target=target_sent, add_special_tokens=True)
         inputs = gen_input.input_ids
         labels = gen_input.labels
         if tag:
             tag_id = tokenizer.convert_tokens_to_ids([tag])
-            inputs = torch.cat([torch.tensor([[tag_id]]), inputs], dim=1)  #fix that
+            #inputs = torch.cat([torch.tensor([[tag_id]]), inputs], dim=1)  #fix that
+            inputs = gen_input.insert(1, tag)
+            inputs = torch.tensor([inputs])
         return inputs, labels[0]
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
@@ -53,7 +54,7 @@ class DataLoader:
         decoder_input, decoder_target = self._create_self_decoder_input(self.tokenizer,
                                                                         input_text_prompt + source_sent,
                                                                         target_sent,
-                                                                        #tag=tag,
+                                                                        tag=tag,
                                                                         )
         batch["input_text_prompt"] = input_text_prompt
         batch["text_input_ids"] = decoder_input
@@ -85,7 +86,7 @@ def generate(tokenizer):
                     with_tag_r=False, with_tags=False)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "en", "en_plain_basic")
+        dl.load_custom_datasets(i, "en", "en_gender")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
@@ -113,9 +114,9 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
                                                  '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
     if additional_tokens:
      tokenizer.add_special_tokens({'additional_special_tokens': additional_tokens})
-    #tokenizer.save_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
+     tokenizer.save_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender_special")
     return tokenizer
 
 if __name__ == "__main__":
-    tokenizer = create_tokenizer()
+    tokenizer = create_tokenizer(gender_tags=True)
     generate(tokenizer)

@@ -1,18 +1,18 @@
 from transformers import MBart50Tokenizer, MBartForConditionalGeneration, MBartTokenizer
 import torch
 
-m = MBartTokenizer.from_pretrained("facebook/mbart-large-cc25", src_lang="en_XX")
-m1 = MBart50Tokenizer.from_pretrained("facebook/mbart-large-cc25")
+m = MBart50Tokenizer.from_pretrained("facebook/mbart-large-50", src_lang="en_XX")
+m1 = MBartTokenizer.from_pretrained("facebook/mbart-large-cc25")
 mbart = MBartForConditionalGeneration.from_pretrained("facebook/mbart-large-cc25")
 # newtoks = {'additional_special_tokens': ['<F>', '<M>']}
 # n = m.add_special_tokens(newtoks)
 # mbart.resize_token_embeddings(len(m))
-print(mbart.config.decoder_start_token_id)
+#print(mbart.config.decoder_start_token_id)
 # print(mbart.vocab_size)
 # print(len(m))
 # print(m.convert_tokens_to_ids('<F>'))
 # print(m.convert_tokens_to_ids('<M>'))
-#print(m1.get_vocab())
+#print(m1.get_vocab() == m.get_vocab())
 
 senence = "I love coffee, i dont know"
 tgt = "Kocham kawe, nie wiem"
@@ -20,8 +20,12 @@ m.tgt_lang = "ja_XX"
 
 for x in range(1):
     tokenized = m(senence, return_tensors="pt", add_special_tokens=True)
+    inputs = tokenized.input_ids
+    print(tokenized.input_ids)
+    print(inputs)
     r = m.prepare_seq2seq_batch(src_texts=senence, text_target=tgt, src_lang="en_XX", max_length=32, max_target_length=32)
     res = mbart.generate(**tokenized, decoder_start_token_id=m.lang_code_to_id["ja_XX"])
+    exit()
     print(r)
     print(res)
     print(m.batch_decode(res, skip_special_tokens=True))
