@@ -19,15 +19,15 @@ import nltk
 os.environ["WANDB_PROJECT"] = "MT"
 nltk.download("punkt")
 LANG = "en"
-MODEL_ID = 'facebook/mbart-large-cc25'
+MODEL_ID = 'facebook/mbart-large-50-many-to-many-mmt'
 PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
-LOCAL = "/mnt/osmanthus/aklharas/checkpoints/mt3cc/checkpoint-9100"
+LOCAL = "/mnt/osmanthus/aklharas/checkpoints/mt4-50base/checkpoint-9100"
 torch.cuda.empty_cache()
 
 def get_model(local=False):
     id = LOCAL if local else MODEL_ID
     model = MBartForConditionalGeneration.from_pretrained(id)
-    tokenizer = MBartTokenizer.from_pretrained(MODEL_ID, tgt_lang="ja_XX", src_lang="en_XX")
+    tokenizer = MBart50Tokenizer.from_pretrained(MODEL_ID, tgt_lang="ja_XX", src_lang="en_XX")
     return model, tokenizer
 
 
@@ -58,7 +58,7 @@ def preprocess_function(examples, tokenizer):
 
 def run(train=False, test=False, eval=False):
     wandb.init()
-    model, tokenizer = get_model()
+    model, tokenizer = get_model(True)
     cuda = torch.cuda.is_available()
     device = torch.device('cuda') if cuda else torch.device('cpu')
     model.to(device)
@@ -71,10 +71,10 @@ def run(train=False, test=False, eval=False):
     #                                           num_training_steps=37500,
     #                                           num_warmup_steps=500)
 
-    train_ds = load_from_disk(f"{PATH}/mt3/train_en.data/train")
-    validation_ds = load_from_disk(f"{PATH}/mt3/validation_en.data/train")
+    train_ds = load_from_disk(f"{PATH}/mt4-50base/train_en.data/train")
+    validation_ds = load_from_disk(f"{PATH}/mt4-50base/validation_en.data/train")
 #    validation_ds = validation_ds.select(range(20))
-    test_ds = load_from_disk(f"{PATH}/mt3/test_en.data/train")
+    test_ds = load_from_disk(f"{PATH}/mt4-50base/test_en.data/train")
 
     def compute_metrics(pred):
      preds, labels = pred
@@ -84,7 +84,7 @@ def run(train=False, test=False, eval=False):
      decoded_preds = tokenizer.batch_decode(preds, skip_special_tokens=True)
      decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
-     decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
+     decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip().replace("\n", ""))) for pred in decoded_preds]
      decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
      gold = [[l] for l in decoded_labels]
      bleu = BLEU(tokenize="ja-mecab")
@@ -93,8 +93,8 @@ def run(train=False, test=False, eval=False):
      sacrebleu_score = bleu.corpus_score(decoded_preds, gold)
      print(result)
      print(sacrebleu_score)
-     with open('hyp.txt', "w") as f1:
-      f1.write("\n".join(decoded_preds))
+##    with open('hyp.txt', "w") as f1:
+#      f1.write("\n".join(decoded_preds))
      with open("ref.txt", "w") as f2:
       f2.write("\n".join(decoded_labels))
      for i in range(20):
@@ -107,8 +107,8 @@ def run(train=False, test=False, eval=False):
         output_dir="/mnt/osmanthus/aklharas/checkpoints/mt4-50base",
         evaluation_strategy="steps",
         predict_with_generate=True,
-        per_device_train_batch_size=4,
-        per_device_eval_batch_size=4,
+        per_device_train_batch_size=1,
+        per_device_eval_batch_size=1,
         load_best_model_at_end=True,
         eval_accumulation_steps=2,
         gradient_accumulation_steps=4,
@@ -147,14 +147,22 @@ def run(train=False, test=False, eval=False):
        trainer.predict(test_ds)
 
 def cascade_inference(local=False):
-    model, tok = get_model()
+    model, tok = get_model(True)
+    model.to(torch.device("cuda"))
     with open("asr.txt", "r") as f:
         samples = f.readlines()
-    tokenized = tok(samples, return_tensors="pt", add_special_tokens=True)
-    res = model.generate(**tokenized, decoder_start_token_id=tok.lang_code_to_id["ja_XX"])
-    translated = tok.batch_decode(res, skip_special_tokens=True)
+    l = []
+    for i in range(0, len(samples), 100):
+     start = i
+     end = start+100 if start+100 <= len(samples) else len(samples)
+     sample = samples[start:end]
+     print(start, end)
+     tokenized = tok(sample, return_tensors="pt", add_special_tokens=True, truncation=True, padding=True).to(torch.device("cuda"))
+     res = model.generate(**tokenized, decoder_start_token_id=tok.lang_code_to_id["ja_XX"])
+     translated = tok.batch_decode(res, skip_special_tokens=True)
+     l = l + translated
     with open('hyp.txt', "w") as f1:
-        f1.write("\n".join(translated))
+        f1.write("\n".join(l))
 
 
 
