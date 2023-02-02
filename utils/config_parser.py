@@ -26,7 +26,7 @@ def parse_args(args):
     parser.add_argument('--share_layer_ratio', default=0, type=float)
     parser.add_argument('--down_scale', default=8, type=int)
     parser.add_argument('--weighted_sum', action='store_true')
-    parser.add_argument('--fixed_parameters', action='store_true')
+    parser.add_argument('--fixed_parameters', default=True, action='store_true')
     parser.add_argument("--custom_set_path", type=str)
     parser.add_argument("--max_input_length_in_sec", default=20, type=int)
     parser.add_argument("--group_by_length", action="store_true")

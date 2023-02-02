@@ -1,3 +1,4 @@
+
 import sys
 from dataclasses import dataclass
 from typing import Dict, List, Union, Optional
@@ -10,6 +11,7 @@ from transformers import Trainer, TrainingArguments, EarlyStoppingCallback, Auto
 from transformers.optimization import (
     Adafactor,
     get_linear_schedule_with_warmup,
+    AdafactorSchedule
 )
 from utils.config_parser import parse_args
 from hf_model import HFSpeechMixEEDmBart, SpeechMixConfig
@@ -18,6 +20,7 @@ import wandb
 from nltk.translate.bleu_score import corpus_bleu
 from sacrebleu.metrics import BLEU
 import os
+import evaluate
 os.environ["WANDB_PROJECT"] = "attribute-aware-ST"
 logging.set_verbosity_info()
 logger = logging.get_logger("trainer")
@@ -66,7 +69,6 @@ class DataCollatorWithPadding:
             labels_batch = labels_batch[:, 1:]
 
         batch['labels'] = labels_batch
-        print(batch['labels'])
 
         torch.cuda.empty_cache()
         return batch
@@ -111,13 +113,19 @@ def main(arg=None):
         label_ids = pred.label_ids
         label_ids = [i[i != -100] for i in label_ids]
         label_str = model.tokenizer.batch_decode(label_ids, skip_special_tokens=True, group_tokens=False)
-        bleu = BLEU(tokenize="ja-mecab")
-        #sacrebleu = evaluate.load("sacrebleu")
-        #bleu_score = sacrebleu.compute(predictions=pred_str, references=gold_sentences, tokenize='ja-mecab')
         gold_sentences = [[l] for l in label_str]
+        bleu = BLEU(tokenize="ja-mecab")
+        sacrebleu = evaluate.load("sacrebleu")
+        bleu_score = sacrebleu.compute(predictions=pred_str, references=gold_sentences, tokenize='ja-mecab')
         result = bleu.corpus_score(pred_str, label_str)
         nltk_bleu_score = corpus_bleu(gold_sentences, pred_str)
         print(nltk_bleu_score)
+        print(bleu_score)
+        with open('hyp.txt', "w") as f1:
+         f1.write("\n".join(pred_str))
+        with open("ref.txt", "w") as f2:
+         f2.write("\n".join(label_str))
+
         #path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
         #if not os.path.exists(path):
         #    os.makedirs(path)
@@ -204,13 +212,14 @@ def main(arg=None):
 #        group_by_length=input_args["group_by_length"],
 	evaluation_strategy="steps",
         load_best_model_at_end=True,
-        #fp16=input_args.get('fp16', True),
-        bf16=True,
+        fp16=input_args.get('fp16', True),
+        #bf16=True,
+#        optim="adafactor",
         num_train_epochs=input_args.get('epoch', 10),
         save_steps=input_args.get('eval_step', 700),
         eval_steps=input_args.get('eval_step', 3),
-        logging_steps=input_args.get('logging_steps', 5),
-        #learning_rate=input_args.get('lr', 1e-4),
+        #logging_steps=input_args.get('logging_steps', 5),
+        #learning_rate=input_args.get('lr', 1e-5),
         #warmup_steps=input_args.get('warmup_steps', 500),
         save_total_limit=input_args.get('save_total_limit', 2),
         dataloader_num_workers=input_args.get('worker', 5),
@@ -239,13 +248,13 @@ def main(arg=None):
     if input_args.get('eval', False):
         trainer.evaluate()
     elif input_args.get('test', False):
-        with torch.no_grad():
-          test_ds = test_ds.select(range(100))
-          res = trainer.predict(test_ds)
-          wandb.log({"test result": res})
+        #with torch.no_grad():
+         # test_ds = test_ds.select(range(100))
+        res = trainer.predict(test_ds)
+        wandb.log({"test result": res})
     else:
-        trainer.train()
-        #trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/tunedBothAda32/checkpoint-2800")
+        #trainer.train()
+        trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/tunedBothBasicRepro-kale2/checkpoint-4900")
         trainer.save_model(f"/mnt/osmanthus/aklharas/models/{input_args.get('modelpath')}")
 
 

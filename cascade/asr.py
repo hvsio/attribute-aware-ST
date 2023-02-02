@@ -52,7 +52,7 @@ def run(train=False, eval=False, test=False):
         # we do not want to group tokens when computing the metrics
         label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
         with open('asr.txt', "w") as f:
-           f.write(f"{pred_str}\n")
+           f.write("\n".join(pred_str))
 
         wer = load("wer")
         score = wer.compute(predictions=pred_str, references=label_str)
@@ -162,10 +162,11 @@ def run(train=False, eval=False, test=False):
     elif eval:
         trainer.evaluate()
     elif test:
-        with torch.no_grad():
-            test_ds = test_ds.select(range(100))
-            res = trainer.predict(test_ds)
-            print(res)
+        trainer.predict(test_ds) 
+#        with torch.no_grad():
+#            test_ds = test_ds.select(range(100))
+#            res = trainer.predict(test_ds)
+#            print(res)
 
 
 def generate_datasets():
@@ -200,4 +201,4 @@ def normalize_inputs(batch, split_type, processor):
 
 if __name__ == "__main__":
     #generate_datasets()
-    run(eval=True)
+    run(test=True)
