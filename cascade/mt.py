@@ -23,7 +23,7 @@ MODEL_ID = 'facebook/mbart-large-50-many-to-many-mmt'
 LOCAL_ID = "/mnt/osmanthus/aklharas/tag_tokenizers/en/gender"
 PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
 LOCAL = "/mnt/osmanthus/aklharas/checkpoints/mt6-50base/checkpoint-18200"
-#index = 0
+index = 0
 
 def get_model(local=False):
     id = LOCAL if local else MODEL_ID
@@ -36,19 +36,23 @@ def generate_cascade_testset():
    with open("asr.txt", "r") as f:
     samples = f.readlines()
    print(len(samples))
-   model, tokenizer = get_model()
-   #print("1. Loading custom files")
-   #json_ds = load_dataset("json", data_files=f"/mnt/osmanthus/aklharas/speechBSD/transformers/jsons/test.json")
-   #print("2. Creating custom uncached files")
-   #dataset = json_ds.map(preprocess_testset, fn_kwargs={"tokenizer": tokenizer})
-   #print(dataset['train'][0])
-   #print("3. Saving to disk")
-   #dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/mt6-cascade-testset/{set_name}_{LANG}>")
+   model, tokenizer = get_model(False)
+   print("1. Loading custom files")
+   json_ds = load_dataset("json", data_files=f"/mnt/osmanthus/aklharas/speechBSD/transformers/jsons/test.json")
+   print("2. Creating custom uncached files")
+   dataset = json_ds.map(preprocess_testset, fn_kwargs={"tokenizer": tokenizer, 'samples': samples})
+   print(dataset['train'][0])
+   print("3. Saving to disk")
+   dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/mt6-cascade-testset/{set_name}_{LANG}>")
 
-def preprocess_testset(batch, tokenizer):
-   #temp = tokenizer(inputs, text_target=targets, truncation=True, padding=True, max_length=128, return_tensors="pt")
-   #batch['input_ids'] = temp['input_ids']â
-   #print(batch)
+def preprocess_testset(batch, tokenizer, samples):
+   temp = tokenizer(samples[index], text_target=batch['ja_sentence'] truncation=True, padding=True, max_length=128, return_tensors="pt")
+   batch['input_ids'] = temp['input_ids']â
+   batch['labels'] = temp['labels']
+   global index 
+   index = index+1
+   print(index)
+   print(batch)
    return batch
 
 
