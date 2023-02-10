@@ -20,15 +20,36 @@ os.environ["WANDB_PROJECT"] = "MT"
 nltk.download("punkt")
 LANG = "en"
 MODEL_ID = 'facebook/mbart-large-50-many-to-many-mmt'
+LOCAL_ID = "/mnt/osmanthus/aklharas/tag_tokenizers/en/gender"
 PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
-LOCAL = "/mnt/osmanthus/aklharas/checkpoints/mt4-50base/checkpoint-9100"
-torch.cuda.empty_cache()
+LOCAL = "/mnt/osmanthus/aklharas/checkpoints/mt6-50base/checkpoint-18200"
+#index = 0
 
 def get_model(local=False):
     id = LOCAL if local else MODEL_ID
+    print(f"loading {id} model")
     model = MBartForConditionalGeneration.from_pretrained(id)
     tokenizer = MBart50Tokenizer.from_pretrained(MODEL_ID, tgt_lang="ja_XX", src_lang="en_XX")
     return model, tokenizer
+
+def generate_cascade_testset():
+   with open("asr.txt", "r") as f:
+    samples = f.readlines()
+   print(len(samples))
+   model, tokenizer = get_model()
+   #print("1. Loading custom files")
+   #json_ds = load_dataset("json", data_files=f"/mnt/osmanthus/aklharas/speechBSD/transformers/jsons/test.json")
+   #print("2. Creating custom uncached files")
+   #dataset = json_ds.map(preprocess_testset, fn_kwargs={"tokenizer": tokenizer})
+   #print(dataset['train'][0])
+   #print("3. Saving to disk")
+   #dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/mt6-cascade-testset/{set_name}_{LANG}>")
+
+def preprocess_testset(batch, tokenizer):
+   #temp = tokenizer(inputs, text_target=targets, truncation=True, padding=True, max_length=128, return_tensors="pt")
+   #batch['input_ids'] = temp['input_ids']â
+   #print(batch)
+   return batch
 
 
 def generate_datasets():
@@ -42,7 +63,7 @@ def generate_datasets():
         dataset = json_ds.map(preprocess_function, fn_kwargs={"tokenizer": tokenizer})
         print(dataset['train'][0])
         print("3. Saving to disk")
-        dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/mt4-50base/{set_name}_{LANG}.data")
+        dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/mt6-50base/{set_name}_{LANG}.data")
 
 source_lang = "en"
 target_lang = "ja"
@@ -50,9 +71,13 @@ metric = evaluate.load("sacrebleu", tokenize="ja-mecab")
 def preprocess_function(examples, tokenizer):
     inputs = examples[f"{source_lang}_sentence"]
     targets = examples[f"{target_lang}_sentence"]
+    tag = "<" + examples[f"en_spk_gender"] + ">"
     tokenizer.src_lang = "en_XX"
     tokenizer.tgt_lang = "ja_XX"
-    models_inputs = tokenizer(inputs, text_target=targets, return_tensors="pt", truncation=True, padding=True, max_length=128)
+    models_inputs = tokenizer(inputs, text_target=targets, truncation=True, padding=True, max_length=128, return_tensors="pt")
+    #tag_id = tokenizer.convert_tokens_to_ids([tag])
+    #models_inputs['input_ids'].insert(1, tag_id[0])
+    #models_inputs['attention_mask'].append(1)
     return {k: torch.squeeze(v, 0) for k,v in models_inputs.items()}
 
 
@@ -71,10 +96,10 @@ def run(train=False, test=False, eval=False):
     #                                           num_training_steps=37500,
     #                                           num_warmup_steps=500)
 
-    train_ds = load_from_disk(f"{PATH}/mt4-50base/train_en.data/train")
-    validation_ds = load_from_disk(f"{PATH}/mt4-50base/validation_en.data/train")
+    train_ds = load_from_disk(f"{PATH}/mt6-50base/train_en.data/train")
+    validation_ds = load_from_disk(f"{PATH}/mt6-50base/validation_en.data/train")
 #    validation_ds = validation_ds.select(range(20))
-    test_ds = load_from_disk(f"{PATH}/mt4-50base/test_en.data/train")
+    test_ds = load_from_disk(f"{PATH}/mt6-50base/test_en.data/train")
 
     def compute_metrics(pred):
      preds, labels = pred
@@ -93,8 +118,8 @@ def run(train=False, test=False, eval=False):
      sacrebleu_score = bleu.corpus_score(decoded_preds, gold)
      print(result)
      print(sacrebleu_score)
-##    with open('hyp.txt', "w") as f1:
-#      f1.write("\n".join(decoded_preds))
+     with open('hyp1.txt', "w") as f1:
+      f1.write("\n".join(decoded_preds))
      with open("ref.txt", "w") as f2:
       f2.write("\n".join(decoded_labels))
      for i in range(20):
@@ -104,20 +129,20 @@ def run(train=False, test=False, eval=False):
      return result
 
     train_args = Seq2SeqTrainingArguments(
-        output_dir="/mnt/osmanthus/aklharas/checkpoints/mt4-50base",
+        output_dir="/mnt/osmanthus/aklharas/checkpoints/mt6-50base",
         evaluation_strategy="steps",
         predict_with_generate=True,
-        per_device_train_batch_size=1,
+        per_device_train_batch_size=2,
         per_device_eval_batch_size=1,
         load_best_model_at_end=True,
         eval_accumulation_steps=2,
-        gradient_accumulation_steps=4,
+        gradient_accumulation_steps=8,
         num_train_epochs=30,
         bf16=True,
         save_steps=700,
         eval_steps=700,
         logging_steps=700,
-        learning_rate=1e-4,
+        learning_rate=4e-5,
         weight_decay=0.005,
         warmup_steps=1000,
         save_total_limit=2,
@@ -139,35 +164,33 @@ def run(train=False, test=False, eval=False):
     if train:
         trainer.train()
         #trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/mt/checkpoint-2000")
-        tokenizer.save_pretrained('/mnt/osmanthus/aklharas/models/mt4-50base')
-        trainer.save_model('/mnt/osmanthus/aklharas/models/mt4-50base')
+        #tokenizer.save_pretrained('/mnt/osmanthus/aklharas/models/mt4-50base')
+        #trainer.save_model('/mnt/osmanthus/aklharas/models/mt4-50base')
     elif eval:
        trainer.evaluate()
     elif test:
        trainer.predict(test_ds)
 
-def cascade_inference(local=False):
+def cascade_inference():
     model, tok = get_model(True)
     model.to(torch.device("cuda"))
     with open("asr.txt", "r") as f:
         samples = f.readlines()
     l = []
-    for i in range(0, len(samples), 100):
-     start = i
-     end = start+100 if start+100 <= len(samples) else len(samples)
-     sample = samples[start:end]
-     print(start, end)
-     tokenized = tok(sample, return_tensors="pt", add_special_tokens=True, truncation=True, padding=True).to(torch.device("cuda"))
+    for i, text in enumerate(samples):
+     print(f"tranlsating {i}")
+     tokenized = tok(text, return_tensors="pt", add_special_tokens=True, truncation=True, padding=True).to(torch.device("cuda"))
      res = model.generate(**tokenized, decoder_start_token_id=tok.lang_code_to_id["ja_XX"])
      translated = tok.batch_decode(res, skip_special_tokens=True)
-     l = l + translated
+     l.append(translated)
     with open('hyp.txt', "w") as f1:
         f1.write("\n".join(l))
 
 
 
 if __name__ == "__main__":
+    generate_cascade_testset()
     #generate_datasets()
-    run(test=True)
-    #cascade_inference(True)
+    #run(train=True)
+    #cascade_inference()
 
