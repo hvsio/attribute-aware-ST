@@ -26,9 +26,9 @@ class DataLoader:
         if tag:
             tag_id = tokenizer.convert_tokens_to_ids([tag])
             #inputs = torch.cat([torch.tensor([[tag_id]]), inputs], dim=1)  #fix that
-            inputs = gen_input.insert(1, tag)
-            inputs = torch.tensor([inputs])
-        return inputs, labels[0]
+            inputs.insert(1, tag_id[0]) #try also reverse order region + gender
+            inputs = torch.tensor([inputs], dtype=torch.int32)
+        return inputs, labels
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
         region = "prefecture" if lang == "ja" else "state"
@@ -82,11 +82,11 @@ class DataLoader:
 def generate(tokenizer):
     #tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
     device = torch.device("cuda")
-    dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=True,
-                    with_tag_r=False, with_tags=False)
+    dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=False,
+                    with_tag_r=True, with_tags=False)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "en", "en_gender")
+        dl.load_custom_datasets(i, "en", "en_region_special")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
@@ -113,10 +113,16 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
                                                  '<東京>', '<佐賀>',
                                                  '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
     if additional_tokens:
-     tokenizer.add_tokens(additional_tokens)
-     tokenizer.save_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
+      tok_list = tokenizer._additional_special_tokens
+      tok_list = tok_list + additional_tokens
+      tok_dist = {'additional_special_tokens': tok_list }
+      print(tok_list)
+      #tokenizer.add_tokens(tok_list)
+      tokenizer.add_special_tokens(tok_dist)
+      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/region_special")
     return tokenizer
 
 if __name__ == "__main__":
-    tokenizer = create_tokenizer(gender_tags=True)
-    generate(tokenizer)
+     #create_tokenizer(en_tags=True)
+     tokenizer = create_tokenizer(en_tags=True)
+     generate(tokenizer)

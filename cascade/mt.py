@@ -22,7 +22,7 @@ LANG = "en"
 MODEL_ID = 'facebook/mbart-large-50-many-to-many-mmt'
 LOCAL_ID = "/mnt/osmanthus/aklharas/tag_tokenizers/en/gender"
 PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
-LOCAL = "/mnt/osmanthus/aklharas/checkpoints/mt6-50base/checkpoint-18200"
+LOCAL = "/mnt/osmanthus/aklharas/checkpoints/mt4-50base/checkpoint-9100"
 index = 0
 
 def get_model(local=False):
@@ -30,6 +30,10 @@ def get_model(local=False):
     print(f"loading {id} model")
     model = MBartForConditionalGeneration.from_pretrained(id)
     tokenizer = MBart50Tokenizer.from_pretrained(MODEL_ID, tgt_lang="ja_XX", src_lang="en_XX")
+    #model.resize_token_embeddings(len(tokenizer))
+    #assert model.vocab_size == len(tokenizer)
+    print("passed")
+
     return model, tokenizer
 
 def generate_cascade_testset():
@@ -43,13 +47,18 @@ def generate_cascade_testset():
    dataset = json_ds.map(preprocess_testset, fn_kwargs={"tokenizer": tokenizer, 'samples': samples})
    print(dataset['train'][0])
    print("3. Saving to disk")
-   dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/mt6-cascade-testset/{set_name}_{LANG}>")
+   dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/mt6-cascade-testset/test_en.data")
 
 def preprocess_testset(batch, tokenizer, samples):
-   temp = tokenizer(samples[index], text_target=batch['ja_sentence'] truncation=True, padding=True, max_length=128, return_tensors="pt")
-   batch['input_ids'] = temp['input_ids']â
-   batch['labels'] = temp['labels']
-   global index 
+   global index
+   print(samples[index])
+   temp = tokenizer(samples[index], text_target=batch['ja_sentence'], truncation=True, padding=True, max_length=128, return_tensors="pt")
+   tag = "<" + batch["en_spk_gender"] + ">"
+   batch['input_ids'] = temp['input_ids'][0]
+   batch['labels'] = temp['labels'][0]
+   tag_id = tokenizer.convert_tokens_to_ids([tag])
+   batch['input_ids'].insert(1, tag_id[0])
+   batch['attention_mask'].append(1)
    index = index+1
    print(index)
    print(batch)
@@ -78,7 +87,7 @@ def preprocess_function(examples, tokenizer):
     tag = "<" + examples[f"en_spk_gender"] + ">"
     tokenizer.src_lang = "en_XX"
     tokenizer.tgt_lang = "ja_XX"
-    models_inputs = tokenizer(inputs, text_target=targets, truncation=True, padding=True, max_length=128, return_tensors="pt")
+    models_inputs = tokenizer(inputs, text_target=targets, truncation=True, padding=True, max_length=128)
     #tag_id = tokenizer.convert_tokens_to_ids([tag])
     #models_inputs['input_ids'].insert(1, tag_id[0])
     #models_inputs['attention_mask'].append(1)
@@ -100,10 +109,10 @@ def run(train=False, test=False, eval=False):
     #                                           num_training_steps=37500,
     #                                           num_warmup_steps=500)
 
-    train_ds = load_from_disk(f"{PATH}/mt6-50base/train_en.data/train")
-    validation_ds = load_from_disk(f"{PATH}/mt6-50base/validation_en.data/train")
+    train_ds = load_from_disk(f"{PATH}/mt5-gender/train_en.data/train")
+    validation_ds = load_from_disk(f"{PATH}/mt5-gender/validation_en.data/train")
 #    validation_ds = validation_ds.select(range(20))
-    test_ds = load_from_disk(f"{PATH}/mt6-50base/test_en.data/train")
+    test_ds = load_from_disk(f"{PATH}/mt6-cascade-testset/test_en.data/train")
 
     def compute_metrics(pred):
      preds, labels = pred
@@ -114,7 +123,7 @@ def run(train=False, test=False, eval=False):
      decoded_labels = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
      decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip().replace("\n", ""))) for pred in decoded_preds]
-     decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
+     decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip().replace("\n", ""))) for label in decoded_labels]
      gold = [[l] for l in decoded_labels]
      bleu = BLEU(tokenize="ja-mecab")
  
@@ -124,7 +133,7 @@ def run(train=False, test=False, eval=False):
      print(sacrebleu_score)
      with open('hyp1.txt', "w") as f1:
       f1.write("\n".join(decoded_preds))
-     with open("ref.txt", "w") as f2:
+     with open("ref1.txt", "w") as f2:
       f2.write("\n".join(decoded_labels))
      for i in range(20):
        print(f"{decoded_preds[i]} ---- {decoded_labels[i]}")
@@ -133,7 +142,7 @@ def run(train=False, test=False, eval=False):
      return result
 
     train_args = Seq2SeqTrainingArguments(
-        output_dir="/mnt/osmanthus/aklharas/checkpoints/mt6-50base",
+        output_dir="/mnt/osmanthus/aklharas/checkpoints/mt5-genderv2",
         evaluation_strategy="steps",
         predict_with_generate=True,
         per_device_train_batch_size=2,
@@ -193,8 +202,8 @@ def cascade_inference():
 
 
 if __name__ == "__main__":
-    generate_cascade_testset()
+    #generate_cascade_testset()
     #generate_datasets()
-    #run(train=True)
+    run(test=True)
     #cascade_inference()
 

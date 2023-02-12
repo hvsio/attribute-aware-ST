@@ -23,7 +23,6 @@ def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int,
     shifted_input_ids = input_ids.new_zeros(input_ids.shape)
     shifted_input_ids[:, 1:] = input_ids[:, :-1].clone()
     shifted_input_ids[:, 0] = decoder_start_token_id
-    #print(shifted_input_ids)
     assert pad_token_id is not None, "self.model.config.pad_token_id has to be defined."
     # replace possible -100 values in labels by `pad_token_id`
     shifted_input_ids.masked_fill_(shifted_input_ids == -100, pad_token_id)
@@ -50,7 +49,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
                 "attention",
 #                "encoder"
             ],
-            gender_tags=False,
+            gender_tags=True,
             en_tags=False,
             ja_tags=False,
             **kwargs,
@@ -69,7 +68,10 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 
         if gender_tags:
             print("Adding gender tags...")
-            additional_tokens = ['<F>', '<M>']
+          #  additional_tokens = ['<F>', '<M>']
+            self.tokenizer  = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/region_special", src_lang=source_lang, tgt_lang=target_lang)
+
+
 
         if en_tags:
             print("Adding EN region...")
@@ -84,14 +86,17 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
                                                      '<岐阜>', '<群馬>', '<山梨>', '<香川>', '<不明>', '<滋賀>',
                                                      '<東京>', '<佐賀>',
                                                      '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
+        else:
+           self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
+
 
         self.encoder_model = Wav2Vec2Model.from_pretrained(speech_model_config)
         self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
 
-        self.processor = Wav2Vec2Processor.from_pretrained(speech_model_config)
-        self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
+        #self.processor = Wav2Vec2Processor.from_pretrained(speech_model_config)
+        #self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
         if additional_tokens:
-         self.tokenizer.add_tokens({'additional_special_tokens': additional_tokens})
+         #self.tokenizer.add_tokens({'additional_special_tokens': additional_tokens})
          self.decoder_model.resize_token_embeddings(len(self.tokenizer))
          assert self.decoder_model.vocab_size == len(self.tokenizer)
         else:

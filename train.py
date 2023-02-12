@@ -151,9 +151,9 @@ def main(arg=None):
         print("PRED vs GOLD")
         for i in range(20):
             print(f"{pred_str[i]}   ---   {label_str[i]}")
-        print({"cer": cer, "wer": wer, "sacrebleu": result.score})
-        wandb.log({"cer": cer, "wer": wer, "sacrebleu": result.score})
-        return {"cer": cer, "wer": wer, "sacrebleu": result.score}
+        print({"cer": cer, "wer": wer, "sacrebleu": bleu_score["score"]})
+        wandb.log({"cer": cer, "wer": wer, "sacrebleu": bleu_score["score"]})
+        return {"cer": cer, "wer": wer, "sacrebleu": bleu_score["score"]}
 
     class FreezingCallback(TrainerCallback):
         def __init__(self, trainer, freeze_model, freeze_epoch=3):
@@ -217,7 +217,7 @@ def main(arg=None):
         output_dir=f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath', temp_id.strftime('%d/%m/%Y-%H.%M'))}",
         resume_from_checkpoint=True,
         per_device_train_batch_size=int(input_args['batch']),
-        per_device_eval_batch_size=int(input_args['batch']),
+        per_device_eval_batch_size=1,
         gradient_accumulation_steps=int(input_args['grad_accum']),
         eval_accumulation_steps=16,
         #group_by_length=input_args["group_by_length"],
@@ -229,7 +229,7 @@ def main(arg=None):
         num_train_epochs=input_args.get('epoch', 10),
         save_steps=input_args.get('eval_step', 700),
         eval_steps=input_args.get('eval_step', 3),
-        #logging_steps=input_args.get('logging_steps', 5),
+        logging_steps=input_args.get('logging_steps', 5),
         #learning_rate=input_args.get('lr', 1e-5),
         #warmup_steps=input_args.get('warmup_steps', 500),
         save_total_limit=input_args.get('save_total_limit', 2),
@@ -264,8 +264,8 @@ def main(arg=None):
         res = trainer.predict(test_ds)
         wandb.log({"test result": res})
     else:
-        #trainer.train()
-        trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/tunedBothBasicRepro-kale2/checkpoint-4900")
+        trainer.train()
+        #trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/tunedBothBasicRepro-kale2/checkpoint-4900")
         trainer.save_model(f"/mnt/osmanthus/aklharas/models/{input_args.get('modelpath')}")
 
 
