@@ -50,7 +50,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 #                "encoder"
             ],
             gender_tags=True,
-            en_tags=False,
+            en_tags=True,
             ja_tags=False,
             **kwargs,
     ):
@@ -64,30 +64,13 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
         super(HFSpeechMixEEDmBart, self).__init__(config)
         source_lang = "en_XX"
         target_lang = "ja_XX"
-        additional_tokens = []
+        additional_tokens = False
 
-        if gender_tags:
-            print("Adding gender tags...")
-          #  additional_tokens = ['<F>', '<M>']
-            self.tokenizer  = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/region_special", src_lang=source_lang, tgt_lang=target_lang)
-
-
-
-        if en_tags:
-            print("Adding EN region...")
-            additional_tokens = additional_tokens + ['<FL>', '<GA>', '<IA>', '<IL>', '<CO>', '<OH>', '<KY>', '<OR>',
-                                                     '<MI>', '<VA>', '<MA>', '<CA>', '<SC>']
-        elif ja_tags:
-            print("Adding JA region...")
-            additional_tokens = additional_tokens + ['<沖縄>', '<岡山>', '<京都>', '<高知>', '<静岡>', '<栃木>',
-                                                     '<茨城>', '<愛知>',
-                                                     '<神奈川>', '<宮城>', '<秋田>', '<兵庫>', '<福岡>', '<千葉>',
-                                                     '<熊本>', '<富山>',
-                                                     '<岐阜>', '<群馬>', '<山梨>', '<香川>', '<不明>', '<滋賀>',
-                                                     '<東京>', '<佐賀>',
-                                                     '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
+        if gender_tags or en_tags or ja_tags :
+            additional_tokens = True
+            self.tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/region_both", src_lang=source_lang, tgt_lang=target_lang)
         else:
-           self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
+            self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
 
 
         self.encoder_model = Wav2Vec2Model.from_pretrained(speech_model_config)

@@ -8,7 +8,7 @@ logger = logging.get_logger("transformers")
 
 class DataLoader:
 
-    def __init__(self, tokenizer, path, with_tag_g: False, with_tag_r: False, with_tags: False):
+    def __init__(self, tokenizer, path, with_tag_g: False, with_tag_r: False):
         self.wav = "facebook/wav2vec2-large-960h-lv60-self"
         self.wavTokenizer = Wav2Vec2Tokenizer.from_pretrained(self.wav)
         self.feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(self.wav)
@@ -17,29 +17,29 @@ class DataLoader:
         self.path = path
         self.with_tag_g = with_tag_g
         self.with_tag_r = with_tag_r
-        self.with_tags = with_tags
 
-    def _create_self_decoder_input(self, tokenizer, input_sent, target_sent, tag=False):
+    def _create_self_decoder_input(self, tokenizer, input_sent, target_sent, tag1=False, tag2=False):
         gen_input = tokenizer(input_sent, text_target=target_sent, add_special_tokens=True)
         inputs = gen_input.input_ids
         labels = gen_input.labels
-        if tag:
-            tag_id = tokenizer.convert_tokens_to_ids([tag])
+        if tag1:
+            tag1_id = tokenizer.convert_tokens_to_ids([tag1])
             #inputs = torch.cat([torch.tensor([[tag_id]]), inputs], dim=1)  #fix that
-            inputs.insert(1, tag_id[0]) #try also reverse order region + gender
-            inputs = torch.tensor([inputs], dtype=torch.int32)
-        return inputs, labels
+            inputs.insert(1, tag1_id[0]) #try also reverse order region + gender
+        if tag2:
+            tag2_id = tokenizer.convert_tokens_to_ids([tag1])
+            inputs.insert(2, tag2_id[0])
+        return torch.tensor([inputs], dtype=torch.int32), labels
 
-    def _prepare_dataset_custom(self, batch, input_text_prompt="", selftype=False, split_type="train", lang="en"):
+    def _prepare_dataset_custom(self, batch, input_text_prompt="", split_type="train", lang="en"):
         region = "prefecture" if lang == "ja" else "state"
 
-        tag = False
+        tag1 = False
+        tag2 = False
         if self.with_tag_g:
-            tag = "<" + batch[f"{lang}_spk_gender"] + ">"
+            tag1 = "<" + batch[f"{lang}_spk_gender"] + ">"
         elif self.with_tag_r:
-            tag = "<" + batch[f"{lang}_spk_{region}"] + ">"
-        elif self.with_tags:
-            tag = "<" + batch[f"{lang}_spk_{region}"] + ">" + "<" + batch[f"{lang}_spk_gender"] + ">"
+            tag2 = "<" + batch[f"{lang}_spk_{region}"] + ">"
 
         filename = batch[f"{lang}_wav"]
         speech, sampling_rate = torchaudio.load(f"{self.path}/wav/{split_type}/{filename}")
@@ -54,7 +54,8 @@ class DataLoader:
         decoder_input, decoder_target = self._create_self_decoder_input(self.tokenizer,
                                                                         input_text_prompt + source_sent,
                                                                         target_sent,
-                                                                        tag=tag,
+                                                                        tag1=tag1,
+                                                                        tag2=tag2,
                                                                         )
         batch["input_text_prompt"] = input_text_prompt
         batch["text_input_ids"] = decoder_input
@@ -71,7 +72,7 @@ class DataLoader:
                                cache_dir="./.cache")
         logger.info("2. Creating custom uncached files")
         dataset = json_ds.map(self._prepare_dataset_custom,
-                              fn_kwargs={"selftype": selftype, "input_text_prompt": "", "split_type": f"{set_name}",
+                              fn_kwargs={"input_text_prompt": "", "split_type": f"{set_name}",
                                          "lang": lang})
         logger.info("3. Saving to disk")
         dataset.save_to_disk(
@@ -83,10 +84,10 @@ def generate(tokenizer):
     #tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
     device = torch.device("cuda")
     dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=False,
-                    with_tag_r=True, with_tags=False)
+                    with_tag_r=False, with_tags=True)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "en", "en_region_special")
+        dl.load_custom_datasets(i, "en", "en_both_normal")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
@@ -115,14 +116,14 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
     if additional_tokens:
       tok_list = tokenizer._additional_special_tokens
       tok_list = tok_list + additional_tokens
-      tok_dist = {'additional_special_tokens': tok_list }
+      #tok_dist = {'additional_special_tokens': tok_list }
       print(tok_list)
-      #tokenizer.add_tokens(tok_list)
-      tokenizer.add_special_tokens(tok_dist)
-      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/region_special")
+      tokenizer.add_tokens(tok_list)
+      #tokenizer.add_special_tokens(tok_dist)
+      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/both_normal")
     return tokenizer
 
 if __name__ == "__main__":
      #create_tokenizer(en_tags=True)
-     tokenizer = create_tokenizer(en_tags=True)
+     tokenizer = create_tokenizer(gender_tags=True, en_tags=True)
      generate(tokenizer)
