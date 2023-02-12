@@ -83,8 +83,8 @@ class DataLoader:
 def generate(tokenizer):
     #tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
     device = torch.device("cuda")
-    dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=False,
-                    with_tag_r=False, with_tags=True)
+    dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=True,
+                    with_tag_r=True)
     sets = ['validation', 'test', 'train']
     for i in sets:
         dl.load_custom_datasets(i, "en", "en_both_normal")
