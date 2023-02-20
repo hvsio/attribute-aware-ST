@@ -26,9 +26,11 @@ class DataLoader:
             tag1_id = tokenizer.convert_tokens_to_ids([tag1])
             #inputs = torch.cat([torch.tensor([[tag_id]]), inputs], dim=1)  #fix that
             inputs.insert(1, tag1_id[0]) #try also reverse order region + gender
+            labels.insert(1, tag1_id[0])
         if tag2:
-            tag2_id = tokenizer.convert_tokens_to_ids([tag1])
-            inputs.insert(2, tag2_id[0])
+            tag2_id = tokenizer.convert_tokens_to_ids([tag2])
+            inputs.insert(1, tag2_id[0])
+            labels.insert(1, tag2_id[0])
         return torch.tensor([inputs], dtype=torch.int32), labels
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", split_type="train", lang="en"):
@@ -38,9 +40,8 @@ class DataLoader:
         tag2 = False
         if self.with_tag_g:
             tag1 = "<" + batch[f"{lang}_spk_gender"] + ">"
-        elif self.with_tag_r:
+        if self.with_tag_r:
             tag2 = "<" + batch[f"{lang}_spk_{region}"] + ">"
-
         filename = batch[f"{lang}_wav"]
         speech, sampling_rate = torchaudio.load(f"{self.path}/wav/{split_type}/{filename}")
         resampler = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16_000)
@@ -84,10 +85,10 @@ def generate(tokenizer):
     #tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
     device = torch.device("cuda")
     dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=True,
-                    with_tag_r=True)
+                    with_tag_r=False)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "en", "en_both_normal")
+        dl.load_custom_datasets(i, "en", "en_gender_tagtolabel")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
@@ -125,5 +126,9 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
 
 if __name__ == "__main__":
      #create_tokenizer(en_tags=True)
-     tokenizer = create_tokenizer(gender_tags=True, en_tags=True)
+     #tokenizer = create_tokenizer(gender_tags=True, en_tags=True)
+     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/gender")
+     tokenizer.src_lang = "en_XX"
+     tokenizer.tgt_lang = "ja_XX"
+
      generate(tokenizer)

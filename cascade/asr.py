@@ -12,14 +12,15 @@ import os
 os.environ["WANDB_PROJECT"] = "ASR"
 
 LANG = "en"
-MODEL_ID = 'jonatasgrosman/wav2vec2-large-xlsr-53-english'
+#MODEL_ID = 'jonatasgrosman/wav2vec2-large-xlsr-53-english'
+MODEL_ID = "facebook/wav2vec2-large-960h-lv60-self"
 PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
 LOCAL = "/mnt/osmanthus/aklharas/checkpoints/asr/checkpoint-25000"
 
 
 def get_model():
     processor = Wav2Vec2Processor.from_pretrained(MODEL_ID)
-    model = Wav2Vec2ForCTC.from_pretrained(LOCAL, ctc_loss_reduction="mean", pad_token_id=processor.tokenizer.pad_token_id, )
+    model = Wav2Vec2ForCTC.from_pretrained(MODEL_ID, ctc_loss_reduction="mean", pad_token_id=processor.tokenizer.pad_token_id, )
     return model, processor
 
 
@@ -51,7 +52,7 @@ def run(train=False, eval=False, test=False):
         pred_str = processor.batch_decode(pred_ids)
         # we do not want to group tokens when computing the metrics
         label_str = processor.batch_decode(pred.label_ids, group_tokens=False)
-        with open('asr.txt', "w") as f:
+        with open('asr_local.txt', "w") as f:
            f.write("\n".join(pred_str))
 
         wer = load("wer")

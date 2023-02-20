@@ -68,7 +68,8 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 
         if gender_tags or en_tags or ja_tags :
             additional_tokens = True
-            self.tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/region_both", src_lang=source_lang, tgt_lang=target_lang)
+            self.tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/gender", src_lang=source_lang, tgt_lang=target_lang)
+            print("Added tokens")
         else:
             self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
 
@@ -81,6 +82,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
         if additional_tokens:
          #self.tokenizer.add_tokens({'additional_special_tokens': additional_tokens})
          self.decoder_model.resize_token_embeddings(len(self.tokenizer))
+         print("here")
          assert self.decoder_model.vocab_size == len(self.tokenizer)
         else:
          print("No tokens added")

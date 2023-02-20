@@ -124,10 +124,15 @@ def main(arg=None):
 
         print(nltk_bleu_score)
         print(bleu_score)
+        genders = [a[0:3] == b[0:3] for a,b in zip(pred_str, label_str)]
+        acc = genders.count(True)/len(genders)
+        print(f"Accuracy: {acc}")
         with open('hyp.txt', "w") as f1:
-         f1.write("\n".join(pred_str))
+         temp_pred = [s[3:] for s in pred_str]
+         f1.write("\n".join(temp_pred))
         with open("ref.txt", "w") as f2:
-         f2.write("\n".join(label_str))
+         temp_labels = [s[3:] for s in label_str]
+         f2.write("\n".join(temp_labels))
 
         # path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
         # if not os.path.exists(path):
