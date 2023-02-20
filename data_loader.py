@@ -26,11 +26,11 @@ class DataLoader:
             tag1_id = tokenizer.convert_tokens_to_ids([tag1])
             #inputs = torch.cat([torch.tensor([[tag_id]]), inputs], dim=1)  #fix that
             inputs.insert(1, tag1_id[0]) #try also reverse order region + gender
-            labels.insert(1, tag1_id[0])
+            #labels.insert(1, tag1_id[0])
         if tag2:
             tag2_id = tokenizer.convert_tokens_to_ids([tag2])
             inputs.insert(1, tag2_id[0])
-            labels.insert(1, tag2_id[0])
+            #labels.insert(1, tag2_id[0])
         return torch.tensor([inputs], dtype=torch.int32), labels
 
     def _prepare_dataset_custom(self, batch, input_text_prompt="", split_type="train", lang="en"):
@@ -41,7 +41,8 @@ class DataLoader:
         if self.with_tag_g:
             tag1 = "<" + batch[f"{lang}_spk_gender"] + ">"
         if self.with_tag_r:
-            tag2 = "<" + batch[f"{lang}_spk_{region}"] + ">"
+            #tag2 = "<" + batch[f"{lang}_spk_{region}"] + ">"
+            tag2 = _convert_to_dialect_token(batch[f"{lang}_spk_gender"])
         filename = batch[f"{lang}_wav"]
         speech, sampling_rate = torchaudio.load(f"{self.path}/wav/{split_type}/{filename}")
         resampler = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16_000)
@@ -81,14 +82,29 @@ class DataLoader:
         return dataset
 
 
+def _convert_to_dialect_token(region):
+    token = ''
+    if region == 'MA':
+        token = '<NWE>'
+    elif region in ['IL', 'MI', 'IA', 'OH']:
+        token = '<MID>'
+    elif region in ['FL', 'GA', 'SC', 'KY', 'VA']:
+        token = '<SOU>'
+    elif region in ['CA', 'OR', 'CO']:
+        token = '<WES>'
+    else:
+        print(f"Not found {region}")
+        exit()
+    print(f"final token {region}")
+    return token
 def generate(tokenizer):
     #tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
     device = torch.device("cuda")
-    dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=True,
-                    with_tag_r=False)
+    dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=False,
+                    with_tag_r=True)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "en", "en_gender_tagtolabel")
+        dl.load_custom_datasets(i, "en", "en_dialect")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
@@ -103,8 +119,9 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
 
     if en_tags:
         print("Adding EN region...")
-        additional_tokens = additional_tokens + ['<FL>', '<GA>', '<IA>', '<IL>', '<CO>', '<OH>', '<KY>', '<OR>',
-                                                 '<MI>', '<VA>', '<MA>', '<CA>', '<SC>']
+        #additional_tokens = additional_tokens + ['<FL>', '<GA>', '<IA>', '<IL>', '<CO>', '<OH>', '<KY>', '<OR>',
+        #                                         '<MI>', '<VA>', '<MA>', '<CA>', '<SC>']
+        additional_tokens = additional_tokens + ['<NWE>', '<MID>', '<SOU>', '<WES>']
     elif ja_tags:
         print("Adding JA region...")
         additional_tokens = additional_tokens + ['<沖縄>', '<岡山>', '<京都>', '<高知>', '<静岡>', '<栃木>',
@@ -121,14 +138,13 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
       print(tok_list)
       tokenizer.add_tokens(tok_list)
       #tokenizer.add_special_tokens(tok_dist)
-      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/both_normal")
+      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect")
     return tokenizer
 
 if __name__ == "__main__":
-     #create_tokenizer(en_tags=True)
+     create_tokenizer(en_tags=True)
      #tokenizer = create_tokenizer(gender_tags=True, en_tags=True)
-     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/gender")
+     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect")
      tokenizer.src_lang = "en_XX"
      tokenizer.tgt_lang = "ja_XX"
-
      generate(tokenizer)
