@@ -1,0 +1,1 @@
+accelerate launch train.py --speech_model_config jonatasgrosman/wav2vec2-large-xlsr-53-english --nlp_model_config facebook/mbart-large-50-many-to-many-mmt --custom_set_path en_plain_basic_fixwav --batch 1 --grad_accum 16 --local tunedBothBasicRepro-kale2 --checkpoint checkpoint-18200 --test True
