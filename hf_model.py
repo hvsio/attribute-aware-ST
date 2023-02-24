@@ -62,13 +62,13 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             config = SpeechMixConfig.from_configs(speech_model_config, nlp_model_config)
 
         super(HFSpeechMixEEDmBart, self).__init__(config)
-        source_lang = "en_XX"
-        target_lang = "ja_XX"
+        source_lang = "ja_XX"
+        target_lang = "en_XX"
         additional_tokens = False
 
         if gender_tags or en_tags or ja_tags :
             additional_tokens = True
-            self.tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/gender", src_lang=source_lang, tgt_lang=target_lang)
+            self.tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/basic", src_lang=source_lang, tgt_lang=target_lang)
             print("Added tokens")
         else:
             self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)

@@ -101,17 +101,17 @@ def generate(tokenizer):
     #tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
     device = torch.device("cuda")
     dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=False,
-                    with_tag_r=True)
+                    with_tag_r=False)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "en", "en_dialect")
+        dl.load_custom_datasets(i, "ja", "basic")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
     MBART = "facebook/mbart-large-50-many-to-many-mmt"
     tokenizer = MBart50Tokenizer.from_pretrained(MBART)
-    tokenizer.src_lang = "en_XX"
-    tokenizer.tgt_lang = "ja_XX"
+    tokenizer.src_lang = "ja_XX"
+    tokenizer.tgt_lang = "en_XX"
     additional_tokens = []
     if gender_tags:
         print("Adding gender tags...")
@@ -134,17 +134,17 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
     if additional_tokens:
       tok_list = tokenizer._additional_special_tokens
       tok_list = tok_list + additional_tokens
-      #tok_dist = {'additional_special_tokens': tok_list }
+      tok_dist = {'additional_special_tokens': tok_list }
       print(tok_list)
-      tokenizer.add_tokens(tok_list)
-      #tokenizer.add_special_tokens(tok_dist)
-      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect")
+      #tokenizer.add_tokens(tok_dist)
+      tokenizer.add_special_tokens(tok_dist)
+      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/basic")
     return tokenizer
 
 if __name__ == "__main__":
-     create_tokenizer(en_tags=True)
+     create_tokenizer()
      #tokenizer = create_tokenizer(gender_tags=True, en_tags=True)
-     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect")
-     tokenizer.src_lang = "en_XX"
-     tokenizer.tgt_lang = "ja_XX"
+     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/basic")
+     tokenizer.src_lang = "ja_XX"
+     tokenizer.tgt_lang = "en_XX"
      generate(tokenizer)

@@ -211,10 +211,10 @@ def main(arg=None):
 
     steps = (20000 / (2 * int(input_args['batch'])) * input_args.get('epoch', 10))
     print(steps)
-    optimizer = Adafactor(model.parameters(), scale_parameter=False, relative_step=False, warmup_init=False, lr=1e-5)
-    lr_scheduler = get_linear_schedule_with_warmup(optimizer,
-                                                   num_training_steps=steps,
-                                                   num_warmup_steps=500)
+    #optimizer = Adafactor(model.parameters(), scale_parameter=False, relative_step=False, warmup_init=False, lr=1e-5)
+    #lr_scheduler = get_linear_schedule_with_warmup(optimizer,
+    #                                               num_training_steps=steps,
+    #                                               num_warmup_steps=500)
     data_collator = DataCollatorWithPadding(tokenizer=model.tokenizer, padding=True, selftype=selftype)
     temp_id = now = datetime.now()
 
@@ -230,13 +230,13 @@ def main(arg=None):
         load_best_model_at_end=True,
         fp16=input_args.get('fp16', True),
         #bf16=True,
-#        optim="adafactor",
+        optim="adafactor",
         num_train_epochs=input_args.get('epoch', 10),
         save_steps=input_args.get('eval_step', 700),
         eval_steps=input_args.get('eval_step', 3),
         logging_steps=input_args.get('logging_steps', 5),
-        #learning_rate=input_args.get('lr', 1e-5),
-        #warmup_steps=input_args.get('warmup_steps', 500),
+        learning_rate=input_args.get('lr', 1e-5),
+        warmup_steps=input_args.get('warmup_steps', 500),
         save_total_limit=input_args.get('save_total_limit', 2),
         dataloader_num_workers=input_args.get('worker', 5),
         report_to=["wandb"],
@@ -252,7 +252,7 @@ def main(arg=None):
         eval_dataset=dev_ds,
         data_collator=data_collator,
         tokenizer=model.tokenizer,
-        optimizers=(optimizer, lr_scheduler),
+        #optimizers=(optimizer, lr_scheduler),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=20)],
     )
 
