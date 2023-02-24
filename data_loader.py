@@ -104,7 +104,7 @@ def generate(tokenizer):
                     with_tag_r=True)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "en", "en_dialect")
+        dl.load_custom_datasets(i, "en", "en_dialect_special")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
@@ -133,18 +133,18 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
                                                  '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
     if additional_tokens:
       tok_list = tokenizer._additional_special_tokens
-      tok_list = tok_list + additional_tokens
-      #tok_dist = {'additional_special_tokens': tok_list }
+      tok_list =  additional_tokens + tok_list
+      tok_dist = {'additional_special_tokens': tok_list }
       print(tok_list)
-      tokenizer.add_tokens(tok_list)
-      #tokenizer.add_special_tokens(tok_dist)
-      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect")
+      #tokenizer.add_tokens(tok_list)
+      tokenizer.add_special_tokens(tok_dist)
+      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect_special")
     return tokenizer
 
 if __name__ == "__main__":
-     #create_tokenizer(en_tags=True)
+     create_tokenizer(en_tags=True)
      #tokenizer = create_tokenizer(gender_tags=True, en_tags=True)
-     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect")
+     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect_special")
      tokenizer.src_lang = "en_XX"
      tokenizer.tgt_lang = "ja_XX"
      generate(tokenizer)
