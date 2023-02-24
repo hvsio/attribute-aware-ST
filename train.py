@@ -129,10 +129,10 @@ def main(arg=None):
         print(f"Accuracy: {acc}")
         with open('hyp.txt', "w") as f1:
          temp_pred = [s[3:] for s in pred_str]
-         f1.write("\n".join(temp_pred))
+         f1.write("\n".join(pred_str))
         with open("ref.txt", "w") as f2:
          temp_labels = [s[3:] for s in label_str]
-         f2.write("\n".join(temp_labels))
+         f2.write("\n".join(label_str))
 
         # path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
         # if not os.path.exists(path):
@@ -269,8 +269,8 @@ def main(arg=None):
         res = trainer.predict(test_ds)
         wandb.log({"test result": res})
     else:
-        trainer.train()
-        #trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/tunedBothBasicRepro-kale2/checkpoint-4900")
+#        trainer.train()
+        trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/en_gender_afterEOSfix/checkpoint-2800")
         trainer.save_model(f"/mnt/osmanthus/aklharas/models/{input_args.get('modelpath')}")
 
 

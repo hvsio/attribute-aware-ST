@@ -66,6 +66,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
         target_lang = "ja_XX"
         additional_tokens = False
 
+        print("TEST HEHEHE")
         if gender_tags or en_tags or ja_tags :
             additional_tokens = True
             self.tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/gender", src_lang=source_lang, tgt_lang=target_lang)
