@@ -1,7 +1,7 @@
 import torch
 import torchaudio
 from datasets import load_dataset
-from transformers import logging, Wav2Vec2Processor, Wav2Vec2FeatureExtractor, Wav2Vec2Tokenizer, MBart50Tokenizer
+from transformers import logging, Wav2Vec2Processor, Wav2Vec2FeatureExtractor, Wav2Vec2Tokenizer, MBart50Tokenizer, MBartTokenizer
 
 logging.set_verbosity_info()
 logger = logging.get_logger("transformers")
@@ -104,12 +104,12 @@ def generate(tokenizer):
                     with_tag_r=False)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "ja", "basic")
+        dl.load_custom_datasets(i, "ja", "mbartcc")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
-    MBART = "facebook/mbart-large-50-many-to-many-mmt"
-    tokenizer = MBart50Tokenizer.from_pretrained(MBART)
+    MBART = "facebook/mbart-large-cc25"
+    tokenizer = MBartTokenizer.from_pretrained(MBART)
     tokenizer.src_lang = "ja_XX"
     tokenizer.tgt_lang = "en_XX"
     additional_tokens = []
@@ -138,13 +138,13 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
       print(tok_list)
       #tokenizer.add_tokens(tok_dist)
       tokenizer.add_special_tokens(tok_dist)
-      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/basic")
+    tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/mbartcc")
     return tokenizer
 
 if __name__ == "__main__":
      create_tokenizer()
      #tokenizer = create_tokenizer(gender_tags=True, en_tags=True)
-     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/basic")
+     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/mbartcc")
      tokenizer.src_lang = "ja_XX"
      tokenizer.tgt_lang = "en_XX"
      generate(tokenizer)

@@ -4,7 +4,7 @@ import math
 import torch
 import torch.nn.functional as F
 from torch import nn
-from transformers import AutoConfig, Wav2Vec2Processor, MBart50Tokenizer
+from transformers import AutoConfig, Wav2Vec2Processor, MBart50Tokenizer, MBartTokenizer
 from transformers import PreTrainedModel
 from transformers import PretrainedConfig
 from transformers import Wav2Vec2Model, MBartForConditionalGeneration
@@ -68,10 +68,10 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
 
         if gender_tags or en_tags or ja_tags :
             additional_tokens = True
-            self.tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/basic", src_lang=source_lang, tgt_lang=target_lang)
+            self.tokenizer = MBartTokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/basic", src_lang=source_lang, tgt_lang=target_lang)
             print("Added tokens")
         else:
-            self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
+            self.tokenizer = MBartTokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
 
 
         self.encoder_model = Wav2Vec2Model.from_pretrained(speech_model_config)
