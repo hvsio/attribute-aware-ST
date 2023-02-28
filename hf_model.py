@@ -286,6 +286,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
                 device=self.device,
             )
         elif decoder_input_ids is None and labels is not None:
+            print(labels)
             decoder_input_ids = shift_tokens_right(
                 labels,
                 self.decoder_model.config.pad_token_id,

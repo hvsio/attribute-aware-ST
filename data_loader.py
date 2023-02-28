@@ -144,7 +144,7 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
 if __name__ == "__main__":
      create_tokenizer()
      #tokenizer = create_tokenizer(gender_tags=True, en_tags=True)
-     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/mbartcc")
+     tokenizer = MBartTokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/mbartcc")
      tokenizer.src_lang = "ja_XX"
      tokenizer.tgt_lang = "en_XX"
      generate(tokenizer)
