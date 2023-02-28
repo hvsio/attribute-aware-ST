@@ -49,8 +49,8 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
                 "attention",
 #                "encoder"
             ],
-            gender_tags=True,
-            en_tags=True,
+            gender_tags=False,
+            en_tags=False,
             ja_tags=False,
             **kwargs,
     ):
@@ -80,7 +80,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
         #self.processor = Wav2Vec2Processor.from_pretrained(speech_model_config)
         #self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
         if additional_tokens:
-         #self.tokenizer.add_tokens({'additional_special_tokens': additional_tokens})
+         self.tokenizer.add_tokens({'additional_special_tokens': additional_tokens})
          self.decoder_model.resize_token_embeddings(len(self.tokenizer))
          print("here")
          assert self.decoder_model.vocab_size == len(self.tokenizer)
