@@ -11,7 +11,7 @@ from evaluate import load
 import os
 os.environ["WANDB_PROJECT"] = "ASR"
 
-LANG = "en"
+LANG = "ja"
 MODEL_ID = 'jonatasgrosman/wav2vec2-large-xlsr-53-japanese'
 PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
 LOCAL = "/mnt/osmanthus/aklharas/checkpoints/asr/checkpoint-25000"
@@ -19,7 +19,7 @@ LOCAL = "/mnt/osmanthus/aklharas/checkpoints/asr/checkpoint-25000"
 
 def get_model():
     processor = Wav2Vec2Processor.from_pretrained(MODEL_ID)
-    model = Wav2Vec2Model.from_pretrained(MODEL_ID, pad_token_id=processor.tokenizer.pad_token_id)
+    model = Wav2Vec2ForCTC.from_pretrained(MODEL_ID, pad_token_id=processor.tokenizer.pad_token_id)
     return model, processor
 
 
@@ -34,9 +34,9 @@ def run(train=False, eval=False, test=False):
     print(next(model.parameters()).device)
     model.freeze_feature_encoder()
 
-    train_ds = load_from_disk(f"{PATH}/ja_asr/train_ja.data/train")
-    validation_ds = load_from_disk(f"{PATH}/ja_asr/validation_ja.data/train")
-    test_ds = load_from_disk(f"{PATH}/ja_asr/test_ja.data/train")
+    train_ds = load_from_disk(f"{PATH}/ja_asr_2/train_ja.data/train")
+    validation_ds = load_from_disk(f"{PATH}/ja_asr_2/validation_ja.data/train")
+    test_ds = load_from_disk(f"{PATH}/ja_asr_2/test_ja.data/train")
     train_ds = train_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])
     validation_ds = validation_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])
     test_ds = test_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])
@@ -126,11 +126,11 @@ def run(train=False, eval=False, test=False):
 
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
     train_args = TrainingArguments(
-        output_dir="/mnt/osmanthus/aklharas/checkpoints/asr_ja",
+        output_dir="/mnt/osmanthus/aklharas/checkpoints/ja_asr",
         evaluation_strategy="steps",
-        per_device_train_batch_size=4,
+        per_device_train_batch_size=2,
         per_device_eval_batch_size=2,
-        gradient_accumulation_steps=4,
+        gradient_accumulation_steps=8,
         #group_by_length=True,
         num_train_epochs=10,
         fp16=True,
@@ -175,12 +175,12 @@ def generate_datasets():
 
     for set_name in sets:
         print("1. Loading custom files")
-        json_ds = load_dataset("json", data_files=f"/mnt/osmanthus/aklharas/speechBSD/transformers/{set_name}.json")
+        json_ds = load_dataset("json", data_files=f"/mnt/osmanthus/aklharas/speechBSD/transformers/jsons/{set_name}.json")
         print("2. Creating custom uncached files")
         dataset = json_ds.map(normalize_inputs, fn_kwargs={"split_type": f"{set_name}", "processor": processor})
         dataset.remove_columns(['ja_sentence', 'en_speaker', 'ja_speaker', 'no', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav'])
         print("3. Saving to disk")
-        dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/{set_name}_{LANG}.data")
+        dataset.save_to_disk(f"/mnt/osmanthus/aklharas/speechBSD/transformers/ja_asr_2/{set_name}_{LANG}.data")
 
 
 def normalize_inputs(batch, split_type, processor):
@@ -197,5 +197,5 @@ def normalize_inputs(batch, split_type, processor):
 
 
 if __name__ == "__main__":
-    generate_datasets()
-    #run(test=True)
+    #generate_datasets()
+    run(train=True)
