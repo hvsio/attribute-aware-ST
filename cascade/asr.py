@@ -1,4 +1,4 @@
-from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor, TrainingArguments, Trainer, Wav2Vec2FeatureExtractor
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor, TrainingArguments, Trainer, Wav2Vec2FeatureExtractor, Wav2Vec2Model
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Union
 from datasets import load_from_disk, load_metric, load_dataset
@@ -12,15 +12,14 @@ import os
 os.environ["WANDB_PROJECT"] = "ASR"
 
 LANG = "en"
-#MODEL_ID = 'jonatasgrosman/wav2vec2-large-xlsr-53-english'
-MODEL_ID = "facebook/wav2vec2-large-960h-lv60-self"
+MODEL_ID = 'jonatasgrosman/wav2vec2-large-xlsr-53-japanese'
 PATH = "/mnt/osmanthus/aklharas/speechBSD/transformers"
 LOCAL = "/mnt/osmanthus/aklharas/checkpoints/asr/checkpoint-25000"
 
 
 def get_model():
     processor = Wav2Vec2Processor.from_pretrained(MODEL_ID)
-    model = Wav2Vec2ForCTC.from_pretrained(MODEL_ID, ctc_loss_reduction="mean", pad_token_id=processor.tokenizer.pad_token_id, )
+    model = Wav2Vec2Model.from_pretrained(MODEL_ID, pad_token_id=processor.tokenizer.pad_token_id)
     return model, processor
 
 
@@ -35,9 +34,9 @@ def run(train=False, eval=False, test=False):
     print(next(model.parameters()).device)
     model.freeze_feature_encoder()
 
-    train_ds = load_from_disk(f"{PATH}/asr/train_en.data/train")
-    validation_ds = load_from_disk(f"{PATH}/asr/validation_en.data/train")
-    test_ds = load_from_disk(f"{PATH}/asr/test_en.data/train")
+    train_ds = load_from_disk(f"{PATH}/ja_asr/train_ja.data/train")
+    validation_ds = load_from_disk(f"{PATH}/ja_asr/validation_ja.data/train")
+    test_ds = load_from_disk(f"{PATH}/ja_asr/test_ja.data/train")
     train_ds = train_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])
     validation_ds = validation_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])
     test_ds = test_ds.remove_columns(['ja_sentence', 'ja_spkid', 'en_spkid', 'en_speaker', 'ja_speaker', 'no', 'ja_wav', 'en_wav'])
@@ -127,7 +126,7 @@ def run(train=False, eval=False, test=False):
 
     data_collator = DataCollatorCTCWithPadding(processor=processor, padding=True)
     train_args = TrainingArguments(
-        output_dir="/mnt/osmanthus/aklharas/checkpoints/asr",
+        output_dir="/mnt/osmanthus/aklharas/checkpoints/asr_ja",
         evaluation_strategy="steps",
         per_device_train_batch_size=4,
         per_device_eval_batch_size=2,
@@ -158,8 +157,8 @@ def run(train=False, eval=False, test=False):
     )
 
     if train:
-        #trainer.train()
-        trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/asr/checkpoint-6000")
+        trainer.train()
+        #trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/asr/checkpoint-6000")
     elif eval:
         trainer.evaluate()
     elif test:
@@ -185,9 +184,6 @@ def generate_datasets():
 
 
 def normalize_inputs(batch, split_type, processor):
-    chars_to_ignore_regex = '[\,\?\.\!\-\;\:\"]'
-    batch[f"{LANG}_sentence"] = re.sub(chars_to_ignore_regex, '', batch[f"{LANG}_sentence"]).lower()
-
     filename = batch[f"{LANG}_wav"]
     speech, sampling_rate = torchaudio.load(f"/mnt/osmanthus/aklharas/speechBSD/wav/{split_type}/{filename}")
     resampler = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16_000)
@@ -201,5 +197,5 @@ def normalize_inputs(batch, split_type, processor):
 
 
 if __name__ == "__main__":
-    #generate_datasets()
-    run(test=True)
+    generate_datasets()
+    #run(test=True)
