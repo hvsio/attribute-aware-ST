@@ -122,10 +122,10 @@ def generate(tokenizer):
     #tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
     device = torch.device("cuda")
     dl = DataLoader(tokenizer, "/mnt/osmanthus/aklharas/speechBSD", with_tag_g=False,
-                    with_tag_r=False)
+                    with_tag_r=True)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "ja", "basic")
+        dl.load_custom_datasets(i, "ja", "prefecture")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
