@@ -41,8 +41,8 @@ class DataLoader:
         if self.with_tag_g:
             tag1 = "<" + batch[f"{lang}_spk_gender"] + ">"
         if self.with_tag_r:
-            tag2 = "<" + batch[f"{lang}_spk_{region}"] + ">"
-            #tag2 = _convert_to_dialect_token(batch[f"{lang}_spk_{region}"]) if lang == "en" else _convert_to_jp_dialect(batch[f"{lang}_spk_{region}"])
+            #tag2 = "<" + batch[f"{lang}_spk_{region}"] + ">"
+            tag2 = _convert_to_dialect_token(batch[f"{lang}_spk_{region}"]) if lang == "en" else _convert_to_jp_dialect(batch[f"{lang}_spk_{region}"])
         filename = batch[f"{lang}_wav"]
         speech, sampling_rate = torchaudio.load(f"{self.path}/wav/{split_type}/{filename}")
         resampler = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16_000)
@@ -118,6 +118,7 @@ def _convert_to_jp_dialect(region):
         token = '<東北>'
     else:
         raise Exception(f'unidentified region {region}')
+    return token
 def generate(tokenizer):
     #tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
     device = torch.device("cuda")
@@ -145,15 +146,15 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
         additional_tokens = additional_tokens + ['<NWE>', '<MID>', '<SOU>', '<WES>']
     elif ja_tags:
         print("Adding JA region...")
-        additional_tokens = additional_tokens + ['<沖縄>', '<岡山>', '<京都>', '<高知>', '<静岡>', '<栃木>',
-                                                 '<茨城>', '<愛知>',
-                                                 '<神奈川>', '<宮城>', '<秋田>', '<兵庫>', '<福岡>', '<千葉>',
-                                                 '<熊本>', '<富山>',
-                                                 '<岐阜>', '<群馬>', '<山梨>', '<香川>', '<不明>', '<滋賀>',
-                                                 '<東京>', '<佐賀>',
-                                                 '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
+        # additional_tokens = additional_tokens + ['<沖縄>', '<岡山>', '<京都>', '<高知>', '<静岡>', '<栃木>',
+        #                                          '<茨城>', '<愛知>',
+        #                                          '<神奈川>', '<宮城>', '<秋田>', '<兵庫>', '<福岡>', '<千葉>',
+        #                                          '<熊本>', '<富山>',
+        #                                          '<岐阜>', '<群馬>', '<山梨>', '<香川>', '<不明>', '<滋賀>',
+        #                                          '<東京>', '<佐賀>',
+        #                                          '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
 
-        #additional_tokens = additional_tokens + ['<九州>', '<中国>', '<近畿>', '<四国>', '<東北>', '<関東>', '<北海道>', '<東北>']
+        additional_tokens = additional_tokens + ['<九州>', '<中国>', '<近畿>', '<四国>', '<東北>', '<関東>', '<北海道>', '<東北>']
     if additional_tokens:
       tok_list = tokenizer._additional_special_tokens
       tok_list = tok_list + additional_tokens
@@ -161,13 +162,13 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
       print(tok_list)
       #tokenizer.add_tokens(tok_dist)
       tokenizer.add_special_tokens(tok_dist)
-      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/prefecture_all")
+      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/dialect")
     return tokenizer
 
 if __name__ == "__main__":
-     create_tokenizer()
-     #tokenizer = create_tokenizer(ja_tags=True)
+     #create_tokenizer()
+     tokenizer = create_tokenizer(ja_tags=True)
      #tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/prefecture")
-     #tokenizer.src_lang = "ja_XX"
-     #tokenizer.tgt_lang = "en_XX"
-     #generate(tokenizer)
+     tokenizer.src_lang = "ja_XX"
+     tokenizer.tgt_lang = "en_XX"
+     generate(tokenizer)
