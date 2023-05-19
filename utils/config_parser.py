@@ -33,10 +33,8 @@ def parse_args(args):
     parser.add_argument("--modelpath", default=date.today().strftime("%d-%m-%Y--%H-%M"), type=str)
     parser.add_argument("--local", type=str)
     parser.add_argument("--checkpoint", type=str)
-    parser.add_argument("--encdec", type=str)
     parser.add_argument("--eval", default=False, type=bool)
     parser.add_argument("--test", default=False, type=bool)
-    parser.add_argument("--vanilla", default=False, type=bool)
     parser.add_argument("--source_lang", default="en", type=str)
     parser.add_argument('--fixed_except', nargs='+',
                         default=["layer_norm", "encoder_attn", 'enc_to_dec_proj', 'length_adapter',
