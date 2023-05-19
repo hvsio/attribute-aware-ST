@@ -8,23 +8,17 @@ from datasets import load_from_disk
 from torch.nn.utils.rnn import pad_sequence
 from transformers import Trainer, TrainingArguments, EarlyStoppingCallback, AutoTokenizer, TrainerCallback, \
     TrainerState, TrainerControl, logging
-from transformers.optimization import (
-    Adafactor,
-    get_linear_schedule_with_warmup,
-    AdafactorSchedule
-)
 from utils.config_parser import parse_args
 from hf_model import HFSpeechMixEEDmBart, SpeechMixConfig
 from datetime import datetime
 import wandb
-from nltk.translate.bleu_score import corpus_bleu
-from sacrebleu.metrics import BLEU
 import os
 import evaluate
+
 os.environ["WANDB_PROJECT"] = "attribute-aware-ST"
 logging.set_verbosity_info()
 logger = logging.get_logger("trainer")
-
+DATA_PATH = ""
 
 @dataclass
 class DataCollatorWithPadding:
@@ -77,10 +71,8 @@ class DataCollatorWithPadding:
 def get_model(input_args, local='', checkpoint='', encdec=''):
     if local:
         print(f"loading checkpoint {local}")
-        config = SpeechMixConfig.from_json_file(f'/mnt/osmanthus/aklharas/checkpoints/{local}/{checkpoint}/config.json')
-        checkpoint = torch.load(f'/mnt/osmanthus/aklharas/checkpoints/{local}/{checkpoint}/pytorch_model.bin')
-        # model = HFSpeechMixEEDmBart.from_pretrained("/mnt/osmanthus/aklharas/checkpoints/tunedBothAda32/checkpoint-7000", config=config)
-        # model = HFSpeechMixEEDmBart(config, load_checkpoint=True, model_path=local, encdec_path=encdec)
+        config = SpeechMixConfig.from_json_file(f'{DATA_PATH}/checkpoints/{local}/{checkpoint}/config.json')
+        checkpoint = torch.load(f'{DATA_PATH}/checkpoints/{local}/{checkpoint}/pytorch_model.bin')
         model = HFSpeechMixEEDmBart(config)
         model.load_state_dict(checkpoint, strict=False)
     else:
@@ -94,8 +86,7 @@ def main(arg=None):
     input_args, other_arg = parse_args(sys.argv[1:]) if arg is None else parse_args(arg)
     print("input_args", input_args)
 
-    model, model_type = get_model(input_args, input_args.get('local'), input_args.get('checkpoint'),
-                                  input_args.get('encdec'))
+    model, model_type = get_model(input_args, input_args.get('local'), input_args.get('checkpoint'))
     selftype = 'SpeechMixSelf' in model_type
     if __name__ == '__main__':
         cuda = torch.cuda.is_available()
@@ -106,7 +97,6 @@ def main(arg=None):
 
     def compute_metrics(pred):
         # predictions, label_ids, inputs (empty?)
-        print("computing metricsss")
         pred_ids = pred.predictions[0]
         pred_ids = [i[i != -100] for i in pred_ids]
         pred_str = model.tokenizer.batch_decode(pred_ids, skip_special_tokens=True, group_tokens=False)
@@ -116,41 +106,10 @@ def main(arg=None):
         label_str = model.tokenizer.batch_decode(label_ids, skip_special_tokens=True, group_tokens=False)
 
         gold_sentences = [[l] for l in label_str]
-        bleu = BLEU(tokenize="ja-mecab")
         sacrebleu = evaluate.load("sacrebleu")
         bleu_score = sacrebleu.compute(predictions=pred_str, references=gold_sentences, tokenize='ja-mecab')
-        result = bleu.corpus_score(pred_str, label_str)
-        nltk_bleu_score = corpus_bleu(gold_sentences, pred_str)
 
-        print(nltk_bleu_score)
         print(bleu_score)
-#        genders = [a[0:3] == b[0:3] for a,b in zip(pred_str, label_str)]
-#        acc = genders.count(True)/len(genders)
-#        print(f"Accuracy: {acc}")
-        with open('hyp.txt', "w") as f1:
-#         temp_pred = [s[3:] for s in pred_str]
-         f1.write("\n".join(pred_str))
-        with open("ref.txt", "w") as f2:
-#         temp_labels = [s[3:] for s in label_str]
-         f2.write("\n".join(label_str))
-
-        # path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
-        # if not os.path.exists(path):
-        #    os.makedirs(path)
-
-        # new_weights_files = str(datetime.now())
-        # path = path+"/"+new_weights_files
-        # pathE = path+"/encoder"
-        # pathD = path+"/decoder"
-        # os.makedirs(path)
-        # os.makedirs(pathE)
-        # os.makedirs(pathD)
-
-        # model.encoder_model.save_pretrained(pathE)
-        # model.decoder_model.save_pretrained(pathD)
-
-        # for l, p in zip(label_str, pred_str):
-        #     print(l, "======", p)
         cer = asrp.cer(label_str, pred_str)
         wer = asrp.wer(label_str, pred_str)
         print("PRED vs GOLD")
@@ -193,11 +152,11 @@ def main(arg=None):
     if 'custom_set_path' in input_args:
         print('load datasets')
         train_ds = load_from_disk(
-            f"/mnt/osmanthus/aklharas/speechBSD/transformers/{input_args['custom_set_path']}/train.data/train")
+            f"{DATA_PATH}/speechBSD/transformers/{input_args['custom_set_path']}/train.data/train")
         dev_ds = load_from_disk(
-            f"/mnt/osmanthus/aklharas/speechBSD/transformers/{input_args['custom_set_path']}/validation.data/train")
+            f"{DATA_PATH}/speechBSD/transformers/{input_args['custom_set_path']}/validation.data/train")
         test_ds = load_from_disk(
-            f"/mnt/osmanthus/aklharas/speechBSD/transformers/{input_args['custom_set_path']}/test.data/train")
+            f"{DATA_PATH}/speechBSD/transformers/{input_args['custom_set_path']}/test.data/train")
         print('datasets loaded')
         train_ds = train_ds.remove_columns(
             ['no', 'ja_speaker', 'en_sentence', 'ja_sentence', 'ja_spkid', 'en_spkid', 'ja_wav', 'en_wav',
@@ -210,26 +169,19 @@ def main(arg=None):
              'ja_spk_gender', 'en_spk_gender', 'ja_spk_prefecture', 'en_spk_state'])
 
     steps = (20000 / (2 * int(input_args['batch'])) * input_args.get('epoch', 10))
-    print(steps)
-    optimizer = Adafactor(model.parameters(), scale_parameter=False, relative_step=False, warmup_init=False, lr=1e-5)
-    lr_scheduler = get_linear_schedule_with_warmup(optimizer,
-                                                   num_training_steps=steps,
-                                                   num_warmup_steps=500)
     data_collator = DataCollatorWithPadding(tokenizer=model.tokenizer, padding=True, selftype=selftype)
-    temp_id = now = datetime.now()
+    temp_id = datetime.now()
 
     training_args = TrainingArguments(
-        output_dir=f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath', temp_id.strftime('%d/%m/%Y-%H.%M'))}",
+        output_dir=f"{DATA_PATH}/checkpoints/{input_args.get('modelpath', temp_id.strftime('%d/%m/%Y-%H.%M'))}",
         resume_from_checkpoint=True,
         per_device_train_batch_size=int(input_args['batch']),
         per_device_eval_batch_size=1,
         gradient_accumulation_steps=int(input_args['grad_accum']),
         eval_accumulation_steps=16,
-        #group_by_length=input_args["group_by_length"],
         evaluation_strategy="steps",
         load_best_model_at_end=True,
         fp16=input_args.get('fp16', True),
-        #bf16=True,
         optim="adafactor",
         num_train_epochs=input_args.get('epoch', 10),
         save_steps=input_args.get('eval_step', 700),
@@ -252,7 +204,6 @@ def main(arg=None):
         eval_dataset=dev_ds,
         data_collator=data_collator,
         tokenizer=model.tokenizer,
-      #  optimizers=(optimizer, lr_scheduler),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=20)],
     )
 
@@ -264,14 +215,12 @@ def main(arg=None):
     if input_args.get('eval', False):
         trainer.evaluate()
     elif input_args.get('test', False):
-        #with torch.no_grad():
-         # test_ds = test_ds.select(range(100))
         res = trainer.predict(test_ds)
         wandb.log({"test result": res})
     else:
         trainer.train()
- #       trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/en_gender_afterEOSfix/checkpoint-2800")
-        trainer.save_model(f"/mnt/osmanthus/aklharas/models/{input_args.get('modelpath')}")
+        #trainer.train(resume_from_checkpoint=f"{SAVE_PATH}/checkpoints/tunedBothBasicRepro/checkpoint-4900")
+        trainer.save_model(f"{DATA_PATH}/models/{input_args.get('modelpath')}")
 
 
 if __name__ == "__main__":

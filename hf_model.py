@@ -4,13 +4,14 @@ import math
 import torch
 import torch.nn.functional as F
 from torch import nn
-from transformers import AutoConfig, Wav2Vec2Processor, MBart50Tokenizer
+from transformers import AutoConfig, MBart50Tokenizer
 from transformers import PreTrainedModel
 from transformers import PretrainedConfig
 from transformers import Wav2Vec2Model, MBartForConditionalGeneration
 from transformers import logging
 
 logger = logging.get_logger('train')
+DATA_PATH = ""
 
 
 def handle_decoder_input_none(decoder_config, batch=1, device=torch.device("cuda")):
@@ -46,8 +47,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
                 "enc_to_dec_proj",
                 "length_adapter",
                 "layernorm_embedding",
-                "attention",
-#                "encoder"
+                "attention"
             ],
             gender_tags=False,
             en_tags=False,
@@ -62,30 +62,26 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             config = SpeechMixConfig.from_configs(speech_model_config, nlp_model_config)
 
         super(HFSpeechMixEEDmBart, self).__init__(config)
-        source_lang = "en_XX"
-        target_lang = "ja_XX"
+        source_lang = "ja_XX"
+        target_lang = "en_XX"
         additional_tokens = False
 
-        if gender_tags or en_tags or ja_tags :
+        if gender_tags or en_tags or ja_tags:
             additional_tokens = True
-            self.tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect_special", src_lang=source_lang, tgt_lang=target_lang)
+            self.tokenizer = MBart50Tokenizer.from_pretrained(f"{DATA_PATH}/tag_tokenizers/ja", src_lang=source_lang,
+                                                              tgt_lang=target_lang)
             print("Added tokens")
         else:
-            self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
-
+            self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang,
+                                                              tgt_lang=target_lang)
 
         self.encoder_model = Wav2Vec2Model.from_pretrained(speech_model_config)
         self.decoder_model = MBartForConditionalGeneration.from_pretrained(nlp_model_config)
-
-        #self.processor = Wav2Vec2Processor.from_pretrained(speech_model_config)
-        #self.tokenizer = MBart50Tokenizer.from_pretrained(nlp_model_config, src_lang=source_lang, tgt_lang=target_lang)
         if additional_tokens:
-         self.tokenizer.add_tokens({'additional_special_tokens': additional_tokens})
-         self.decoder_model.resize_token_embeddings(len(self.tokenizer))
-         print("here")
-         assert self.decoder_model.vocab_size == len(self.tokenizer)
+            self.decoder_model.resize_token_embeddings(len(self.tokenizer))
+            assert self.decoder_model.vocab_size == len(self.tokenizer)
         else:
-         print("No tokens added")
+            print("No tokens added")
         self.weighted_sum = weighted_sum
         num_nlp_encoder_layers = 0
 
@@ -188,7 +184,6 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             module.bias.data.zero_()
 
     def prepare_decoder_input_ids_from_labels(self, labels: torch.Tensor):
-        print("Called prepare decoder input id from labels")
         return shift_tokens_right(labels, self.config.pad_token_id,
                                   self.config.decoder_start_token_id)
 
@@ -202,17 +197,16 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             **kwargs,
     ):
         # "attention_mask": attention_mask,
-        #decoder_inputs = self.decoder_model.prepare_inputs_for_generation(input_ids, past=past)
-        #decoder_attention_mask = decoder_inputs["attention_mask"] if "attention_mask" in decoder_inputs else None
+        # decoder_inputs = self.decoder_model.prepare_inputs_for_generation(input_ids, past=past)
+        # decoder_attention_mask = decoder_inputs["attention_mask"] if "attention_mask" in decoder_inputs else None
         # "decoder_attention_mask": decoder_attention_mask,
-        print("preapring called")
         input_dict = {
             "encoder_outputs": encoder_outputs,
             "attention_mask": attention_mask,
             "use_cache": use_cache,
             "past_key_values": past,
             "decoder_input_ids": input_ids,
-           # "decoder_attention_mask": decoder_attention_mask
+            # "decoder_attention_mask": decoder_attention_mask
         }
         input_dict.update(kwargs)
         return input_dict
@@ -291,7 +285,7 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
                 self.decoder_model.config.pad_token_id,
                 self.decoder_model.config.decoder_start_token_id,
             )
-            #decoder_input_ids = labels
+            # decoder_input_ids = labels
         inputs_embeds = encoder_outputs.last_hidden_state.to(self.device)
 
         if self.weighted_sum:
@@ -302,8 +296,6 @@ class HFSpeechMixEEDmBart(PreTrainedModel):
             stacked_feature = stacked_feature.view(
                 self.num_speech_encoder_layers + 1, -1)
             norm_weights = F.softmax(self.weights_sum, dim=-1)
-            if return_model_detail:
-                return_dict["weighted_sum"] = norm_weights
             weighted_feature = (norm_weights.unsqueeze(-1) *
                                 stacked_feature).sum(dim=0)
             inputs_embeds = weighted_feature.view(*origin_shape)
