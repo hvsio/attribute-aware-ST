@@ -124,15 +124,15 @@ def main(arg=None):
 
         print(nltk_bleu_score)
         print(bleu_score)
-        genders = [a[0:3] == b[0:3] for a,b in zip(pred_str, label_str)]
-        acc = genders.count(True)/len(genders)
-        print(f"Accuracy: {acc}")
+#        genders = [a[0:3] == b[0:3] for a,b in zip(pred_str, label_str)]
+#        acc = genders.count(True)/len(genders)
+#        print(f"Accuracy: {acc}")
         with open('hyp.txt', "w") as f1:
-         temp_pred = [s[3:] for s in pred_str]
-         f1.write("\n".join(temp_pred))
+#         temp_pred = [s[3:] for s in pred_str]
+         f1.write("\n".join(pred_str))
         with open("ref.txt", "w") as f2:
-         temp_labels = [s[3:] for s in label_str]
-         f2.write("\n".join(temp_labels))
+#         temp_labels = [s[3:] for s in label_str]
+         f2.write("\n".join(label_str))
 
         # path = f"/mnt/osmanthus/aklharas/checkpoints/{input_args.get('modelpath')}/pretrained_weights"
         # if not os.path.exists(path):
@@ -230,13 +230,13 @@ def main(arg=None):
         load_best_model_at_end=True,
         fp16=input_args.get('fp16', True),
         #bf16=True,
-#        optim="adafactor",
+        optim="adafactor",
         num_train_epochs=input_args.get('epoch', 10),
         save_steps=input_args.get('eval_step', 700),
         eval_steps=input_args.get('eval_step', 3),
         logging_steps=input_args.get('logging_steps', 5),
-        #learning_rate=input_args.get('lr', 1e-5),
-        #warmup_steps=input_args.get('warmup_steps', 500),
+        learning_rate=input_args.get('lr', 1e-5),
+        warmup_steps=input_args.get('warmup_steps', 500),
         save_total_limit=input_args.get('save_total_limit', 2),
         dataloader_num_workers=input_args.get('worker', 5),
         report_to=["wandb"],
@@ -252,7 +252,7 @@ def main(arg=None):
         eval_dataset=dev_ds,
         data_collator=data_collator,
         tokenizer=model.tokenizer,
-        optimizers=(optimizer, lr_scheduler),
+      #  optimizers=(optimizer, lr_scheduler),
         callbacks=[EarlyStoppingCallback(early_stopping_patience=20)],
     )
 
@@ -270,7 +270,7 @@ def main(arg=None):
         wandb.log({"test result": res})
     else:
         trainer.train()
-        #trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/tunedBothBasicRepro-kale2/checkpoint-4900")
+ #       trainer.train(resume_from_checkpoint="/mnt/osmanthus/aklharas/checkpoints/en_gender_afterEOSfix/checkpoint-2800")
         trainer.save_model(f"/mnt/osmanthus/aklharas/models/{input_args.get('modelpath')}")
 
 

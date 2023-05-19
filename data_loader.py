@@ -42,7 +42,7 @@ class DataLoader:
             tag1 = "<" + batch[f"{lang}_spk_gender"] + ">"
         if self.with_tag_r:
             #tag2 = "<" + batch[f"{lang}_spk_{region}"] + ">"
-            tag2 = _convert_to_dialect_token(batch[f"{lang}_spk_gender"])
+            tag2 = _convert_to_dialect_token(batch[f"{lang}_spk_state"])
         filename = batch[f"{lang}_wav"]
         speech, sampling_rate = torchaudio.load(f"{self.path}/wav/{split_type}/{filename}")
         resampler = torchaudio.transforms.Resample(orig_freq=sampling_rate, new_freq=16_000)
@@ -95,7 +95,7 @@ def _convert_to_dialect_token(region):
     else:
         print(f"Not found {region}")
         exit()
-    print(f"final token {region}")
+   # print(f"final token {region}")
     return token
 def generate(tokenizer):
     #tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/models/tag_tokenizers/en/gender")
@@ -104,7 +104,7 @@ def generate(tokenizer):
                     with_tag_r=True)
     sets = ['validation', 'test', 'train']
     for i in sets:
-        dl.load_custom_datasets(i, "en", "en_dialect")
+        dl.load_custom_datasets(i, "en", "en_dialect_special")
 
 
 def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
@@ -133,18 +133,18 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
                                                  '<新潟>', '<広島>', '<埼玉>', '<山形>', '<北海道>', '<大阪>']
     if additional_tokens:
       tok_list = tokenizer._additional_special_tokens
-      tok_list = tok_list + additional_tokens
-      #tok_dist = {'additional_special_tokens': tok_list }
+      tok_list =  additional_tokens + tok_list
+      tok_dist = {'additional_special_tokens': tok_list }
       print(tok_list)
-      tokenizer.add_tokens(tok_list)
-      #tokenizer.add_special_tokens(tok_dist)
-      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect")
+      #tokenizer.add_tokens(tok_list)
+      tokenizer.add_special_tokens(tok_dist)
+      tokenizer.save_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect_special")
     return tokenizer
 
 if __name__ == "__main__":
      create_tokenizer(en_tags=True)
      #tokenizer = create_tokenizer(gender_tags=True, en_tags=True)
-     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect")
+     tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/en/dialect_special")
      tokenizer.src_lang = "en_XX"
      tokenizer.tgt_lang = "ja_XX"
      generate(tokenizer)
