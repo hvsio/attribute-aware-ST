@@ -41,7 +41,7 @@ class DataLoader:
         if self.with_tag_g:
             tag1 = "<" + batch[f"{lang}_spk_gender"] + ">"
         if self.with_tag_r:
-            tag2 = _convert_to_dialect_token(batch[f"{lang}_spk_{region}"]) if lang == "en" else _convert_to_jp_dialect(
+            tag2 = _convert_to_en_dialect(batch[f"{lang}_spk_{region}"]) if lang == "en" else _convert_to_jp_dialect(
                 batch[f"{lang}_spk_{region}"])
         filename = batch[f"{lang}_wav"]
         speech, sampling_rate = torchaudio.load(f"{self.path}/wav/{split_type}/{filename}")
@@ -79,7 +79,7 @@ class DataLoader:
         return dataset
 
 
-def _convert_to_dialect_token(region):
+def _convert_to_en_dialect(region):
     token = ''
     if region == 'MA':
         token = '<NWE>'
@@ -168,7 +168,7 @@ def create_tokenizer(gender_tags=False, en_tags=False, ja_tags=False):
 if __name__ == "__main__":
     # create_tokenizer()
     tokenizer = create_tokenizer(ja_tags=True)
-    # tokenizer = MBart50Tokenizer.from_pretrained("/mnt/osmanthus/aklharas/tag_tokenizers/ja/prefecture")
+    # tokenizer = MBart50Tokenizer.from_pretrained(f"{DATA_PATH}/tag_tokenizers/ja/prefecture")
     tokenizer.src_lang = "ja_XX"
     tokenizer.tgt_lang = "en_XX"
     generate(tokenizer)
